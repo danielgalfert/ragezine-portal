@@ -82,7 +82,6 @@ body {
 
 main {
   min-height: 100%;
-}
 
 /* Hide scrollbar but keep functionality */
 ::-webkit-scrollbar {
