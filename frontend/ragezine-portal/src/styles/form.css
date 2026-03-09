@@ -300,6 +300,16 @@
   background: rgba(121, 58, 99, 0.36) !important;
 }
 
+.form-select__menu {
+  border-radius: 10px !important;
+  background: #111a35 !important;
+  border: 1px solid rgba(207, 214, 203, 0.2) !important;
+}
+
+.form-select__option--is-focused {
+  background: rgba(121, 58, 99, 0.36) !important;
+}
+
 .form-select__option--is-selected {
   background: rgba(121, 58, 99, 0.62) !important;
   color: #08140b !important;
