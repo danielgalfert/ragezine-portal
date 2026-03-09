@@ -18,8 +18,8 @@ const initialForm = {
   pronouns: "",
   short_bio: "",
   socials: "",
-  countries_origin: "",
-  countries_residence: "",
+  country_origin: "",
+  countries_residence: [],
   language: "English",
   allow_translation: false,
 };
@@ -86,8 +86,8 @@ export default function Form() {
     if (!form.artist_name.trim()) return "Please provide an artist name.";
     if (!form.pronouns.trim()) return "Please provide pronouns (or write N/A).";
     if (!form.short_bio.trim()) return "Please provide a short bio (2–3 sentences).";
-    if (!form.countries_origin.trim()) return "Please provide countries of origin.";
-    if (!form.countries_residence.trim()) return "Please provide countries of residence.";
+    if (!form.country_origin.trim()) return "Please provide countries of origin.";
+    if (!form.countries_residence) return "Please provide countries of residence.";
     if (visualFiles.length > MAX_VISUALS) return `Too many visuals. Max ${MAX_VISUALS}.`;
 
     return "";
@@ -122,15 +122,11 @@ export default function Form() {
     <>
       <nav>
         <ul>
-          <li><a href="#about">about</a></li>
-          <li><a href="#submit">submit</a></li>
-          <li><a href="#events">events</a></li>
-          <li><a href="#contact">contact</a></li>
+          <li><a href="#about">back</a></li>
         </ul>
 
         <div className="buttons">
-          <button className="menu-button" type="button">stockists</button>
-          <button className="menu-button" type="button">read</button>
+          <button className="menu-button" type="button">admin</button>
         </div>
       </nav>
 
@@ -158,7 +154,7 @@ export default function Form() {
         </div>
 
         {error && <div className="portal-error">{error}</div>}
-        {ok && <div className="portal-ok">Submitted ✅</div>}
+        {ok && <div className="portal-ok">Submitted </div>}
 
         <form className="portal-form" onSubmit={onSubmit}>
           <div className="portal-grid">
@@ -195,15 +191,15 @@ export default function Form() {
 
             <Field label="Country of origin *">
               <CountrySelect
-                value={form.countries_origin}
-                onChange={(countryCode) => update("countries_origin", countryCode)}
+                value={form.country_origin}
+                onChange={(countryCode) => update("country_origin", countryCode)}
               />
             </Field>
 
-            <Field label="Countries of origin *">
+            <Field label="Countries of residence *">
               <CountrySelect
-                value={form.countries_origin}
-                onChange={(countries) => update("countries_origin", countries)}
+                value={form.countries_residence}
+                onChange={(countries) => update("countries_residence", countries)}
                 isMulti
               />
             </Field>
@@ -300,6 +296,10 @@ export default function Form() {
             )}
           </Field>
 
+          <div style={{ marginTop: 18 }} className="portal-help">
+            Filename reminder: <span className="code">Artist-Name_Artwork-Title</span>
+          </div>
+
           <div className="portal-actions">
             <button className="portal-btn" type="submit" disabled={submitting}>
               {submitting ? "submitting…" : "submit"}
@@ -315,9 +315,7 @@ export default function Form() {
             </button>
           </div>
 
-          <div style={{ marginTop: 18 }} className="portal-help">
-            Filename reminder: <span className="code">Artist-Name_Artwork-Title</span>
-          </div>
+          
         </form>
 
       </section>
