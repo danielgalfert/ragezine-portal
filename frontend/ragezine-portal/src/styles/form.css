@@ -44,6 +44,69 @@
   color: #a6b0c2;
 }
 
+.portal-file {
+  padding: 0.5rem 0.55rem;
+}
+
+.portal-file::file-selector-button,
+.portal-file::-webkit-file-upload-button {
+  margin-right: 0.8rem;
+  border: 1px solid rgba(176, 114, 154, 0.85);
+  background: rgba(121, 58, 99, 0.72);
+  color: #f6deee;
+  border-radius: 8px;
+  padding: 0.45rem 0.75rem;
+  font-family: "NewEdge666SemiBold", sans-serif;
+  text-transform: lowercase;
+  cursor: pointer;
+}
+
+.portal-file:hover::file-selector-button,
+.portal-file:hover::-webkit-file-upload-button {
+  background: rgba(121, 58, 99, 0.9);
+  border-color: rgba(176, 114, 154, 1);
+}
+
+.translation-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.portal-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(176, 114, 154, 0.85);
+  background: rgba(16, 15, 30, 0.8);
+  display: inline-grid;
+  place-items: center;
+  margin: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.portal-checkbox::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  transform: scale(0);
+  transition: transform 120ms ease;
+  background: var(--accent-soft);
+}
+
+.portal-checkbox:checked::before {
+  transform: scale(1);
+}
+
+.portal-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(121, 58, 99, 0.28);
+}
+
 .portal-input:focus,
 .portal-textarea:focus,
 .portal-file:focus {
@@ -205,6 +268,36 @@
 
 .form-select__placeholder {
   color: #a6b0c2 !important;
+}
+
+.form-select__multi-value {
+  background: rgba(121, 58, 99, 0.62) !important;
+  border: 1px solid rgba(176, 114, 154, 0.85) !important;
+  border-radius: 999px !important;
+}
+
+.form-select__multi-value__label {
+  color: #f6deee !important;
+}
+
+.form-select__multi-value__remove {
+  color: #f6deee !important;
+  border-left: 1px solid rgba(246, 222, 238, 0.25) !important;
+}
+
+.form-select__multi-value__remove:hover {
+  background: rgba(16, 15, 30, 0.35) !important;
+  color: #fff !important;
+}
+
+.form-select__menu {
+  border-radius: 10px !important;
+  background: #111a35 !important;
+  border: 1px solid rgba(207, 214, 203, 0.2) !important;
+}
+
+.form-select__option--is-focused {
+  background: rgba(121, 58, 99, 0.36) !important;
 }
 
 .form-select__menu {

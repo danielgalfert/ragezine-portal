@@ -247,16 +247,14 @@ export default function Form() {
                 value={form.language}
                 onChange={(e) => update("language", e.target.value)}
               />
-              <label
-                className="portal-help"
-                style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}
-              >
+              <label className="portal-help translation-option">
                 <input
+                  className="portal-checkbox"
                   type="checkbox"
                   checked={form.allow_translation}
                   onChange={(e) => update("allow_translation", e.target.checked)}
                 />
-                I’m happy for the piece to be accompanied by an English translation.
+                <span>I’m happy for the piece to be accompanied by an English translation.</span>
               </label>
             </Field>
           </div>
