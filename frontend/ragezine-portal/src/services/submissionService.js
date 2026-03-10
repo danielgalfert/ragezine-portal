@@ -1,6 +1,7 @@
+import client from "../api/client";
 
 export async function createSubmission(payload) {
-  const response = await client.post("/submission", payload);
+  const response = await client.post("/submissions/", payload);
   return response.data;
 }
 

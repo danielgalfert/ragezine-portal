@@ -63,11 +63,23 @@ export default function Form() {
     const fd = new FormData();
 
     Object.entries(form).forEach(([key, value]) => {
-      if (typeof value === "boolean") {
-        fd.append(key, value ? "1" : "0");
-      } else {
-        fd.append(key, value);
+      if (value === null || value === undefined || value === "") {
+        return;
       }
+
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          fd.append(key, item);
+        });
+        return;
+      }
+
+      if (typeof value === "boolean") {
+        fd.append(key, value ? "true" : "false");
+        return;
+      }
+
+      fd.append(key, value);
     });
 
     if (textFile) {
@@ -75,7 +87,7 @@ export default function Form() {
     }
 
     visualFiles.forEach((file) => {
-      fd.append("visual_files", file);
+      fd.append("visuals", file);
     });
 
     return fd;
