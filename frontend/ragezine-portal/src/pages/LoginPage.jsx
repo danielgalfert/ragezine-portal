@@ -112,10 +112,7 @@ export default function LoginPage() {
         <div className="login-shell">
           <div className="login-copy">
             <h2>Login</h2>
-            <p>
-              This page is rendered entirely in the frontend and authenticates against
-              Django session auth.
-            </p>
+            
           </div>
 
           <div className="portal-form-wrap login-form-wrap">

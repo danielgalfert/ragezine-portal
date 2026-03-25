@@ -1,0 +1,25 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ragezine-base" x1="960" y1="0" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#CEBDEF"/>
+      <stop offset="0.28" stop-color="#B80000"/>
+      <stop offset="0.56" stop-color="#FF00C3"/>
+      <stop offset="0.82" stop-color="#1D30D7"/>
+      <stop offset="1" stop-color="#CEBDEF"/>
+    </linearGradient>
+    <radialGradient id="ragezine-pink-bloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1574.4 216) rotate(90) scale(340 340)">
+      <stop offset="0" stop-color="#FF00C3" stop-opacity="0.16"/>
+      <stop offset="0.7" stop-color="#FF00C3" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#FF00C3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ragezine-blue-bloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1344 799.2) rotate(90) scale(420 420)">
+      <stop offset="0" stop-color="#1D30D7" stop-opacity="0.18"/>
+      <stop offset="0.72" stop-color="#1D30D7" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#1D30D7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#ragezine-base)"/>
+  <circle cx="1574.4" cy="216" r="340" fill="url(#ragezine-pink-bloom)"/>
+  <circle cx="1344" cy="799.2" r="420" fill="url(#ragezine-blue-bloom)"/>
+</svg>
