@@ -6,11 +6,11 @@ export async function createSubmission(payload) {
 }
 
 export async function getSubmissions() {
-  const response = await client.get("/submissions");
+  const response = await client.get("/submissions/");
   return response.data;
 }
 
 export async function getSubmissionById(id) {
-  const response = await client.get(`/submissions/${id}`);
+  const response = await client.get(`/submissions/${id}/`);
   return response.data;
 }
