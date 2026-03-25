@@ -1,11 +1,9 @@
-/* Basic reset */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* Fonts */
 @font-face {
   font-family: "NewEdge666";
   src: url("/fonts/NewEdge666-RegularRounded.otf") format("opentype");
@@ -36,54 +34,57 @@
   font-display: swap;
 }
 
+:root {
+  --lavender: #cebdef;
+  --soft-pink: #ffe4ff;
+  --hot-pink: #ff00c3;
+  --crimson: #b80000;
+  --electric-blue: #1d30d7;
+  --ink: #090512;
+  --text-main: #050308;
+  --text-muted: rgba(5, 3, 8, 0.72);
+  --focus: rgba(29, 48, 215, 0.22);
+}
+
 html,
 body,
 #root {
-  height: 100%;
   min-height: 100%;
-  background-color: #100f1e;
 }
 
-:root {
-  --royal-plum: #793a63;
-  --ash-grey: #cfd6cb;
-  --ink-black: #100f1e;
-  --jade-green: #3db448;
-  --space-indigo: #152550;
-
-  --bg-main: var(--ink-black);
-  --bg-surface: var(--space-indigo);
-  --text-main: #9b5e86;
-  --text-soft: #7f3f6b;
-  --line: #2f3f75;
-  --accent: var(--royal-plum);
-  --accent-soft: #b0729a;
-  --success: var(--jade-green);
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
-  font-family: "NewEdge666", sans-serif;
-  scroll-behavior: smooth;
   overflow-x: hidden;
+  font-family: "NewEdge666", sans-serif;
   color: var(--text-main);
-  line-height: 1.45;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(61, 180, 72, 0.78), transparent 32%),
-    radial-gradient(circle at 74% 20%, rgba(21, 37, 80, 0.92), transparent 44%),
-    radial-gradient(circle at 20% 80%, rgba(207, 214, 203, 0.38), transparent 24%),
-    radial-gradient(circle at 56% 72%, rgba(121, 58, 99, 0.7), transparent 38%),
-    radial-gradient(circle at 90% 88%, rgba(16, 15, 30, 0.96), transparent 30%),
-    linear-gradient(160deg, #100f1e 0%, #152550 46%, #100f1e 100%);
-  background-attachment: scroll;
-  background-repeat: no-repeat;
-  background-size: cover;
+  background-color: var(--lavender);
 }
 
 main {
-  min-height: 100%;
+  min-height: 100vh;
+}
 
-/* Hide scrollbar but keep functionality */
+a,
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
 ::-webkit-scrollbar {
   width: 0;
   background: transparent;
@@ -94,7 +95,6 @@ main {
 }
 
 ::selection {
-  color: #fff;
-  background: var(--accent);
-}
+  background: var(--electric-blue);
+  color: var(--soft-pink);
 }

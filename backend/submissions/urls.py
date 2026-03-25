@@ -1,10 +1,3 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import SubmissionViewSet
+from submissions.api.urls import urlpatterns
 
-router = DefaultRouter()
-router.register(r"submissions", SubmissionViewSet)
-
-urlpatterns = [
-    path("", include(router.urls)),
-]
+__all__ = ["urlpatterns"]

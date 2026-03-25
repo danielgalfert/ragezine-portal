@@ -5,9 +5,20 @@ from django.contrib.postgres.fields import ArrayField
 VOLUME_NUMBER = 3
 
 class Submission(models.Model):
+    class SubmissionType(models.TextChoices):
+        POETRY = "poetry", "Poetry"
+        VISUAL_ART = "visual_art", "Visual art"
+        SHORT_FORM_WRITING = "short_form_writing", "Short form writing"
+        LONG_FORM_WRITING = "long_form_writing", "Long form writing"
+        OTHER = "other", "Other"
+
     title = models.CharField(max_length=255)
     year = models.CharField(max_length=32, blank=True)
     description = models.TextField(blank=True)
+    submission_type = models.CharField(
+        max_length=32,
+        choices=SubmissionType.choices,
+    )
 
     volume = models.IntegerField(default=VOLUME_NUMBER)
 
@@ -20,7 +31,7 @@ class Submission(models.Model):
 
     #Contact info
     socials = models.CharField(max_length=500, blank=True)
-    email = models.EmailField(blank=True)
+    email = models.EmailField()
 
     country_origin = models.TextField()
     countries_residence = ArrayField(
@@ -58,3 +69,19 @@ class SubmissionVisual(models.Model):
 
     def __str__(self):
         return f"Visual for {self.submission_id}: {self.image.name}"
+
+
+class SubmissionText(models.Model):
+    submission = models.ForeignKey(
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="texts",
+    )
+    file = models.FileField(upload_to="submissions/texts/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Text for {self.submission_id}: {self.file.name}"
