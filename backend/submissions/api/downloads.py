@@ -3,14 +3,16 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.shortcuts import get_object_or_404
-from django.http import HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils.text import get_valid_filename
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser
 
-from submissions.models import Submission
+from submissions.documents import iter_submission_files
+from submissions.models import Submission, SubmissionDocument
+from submissions.repositories import SubmissionRepository
 from submissions.serializers import country_name
 from submissions.utils import sanitize_single_line
 
@@ -34,6 +36,7 @@ EXCEL_COLUMN_CONFIG = [
     ("created_at", "Created At"),
 ]
 WIDE_TEXT_FIELDS = {"description", "short_bio"}
+submission_repository = SubmissionRepository()
 
 
 def _safe_path_segment(value, fallback):
@@ -49,23 +52,12 @@ def _submission_archive_name(submission):
     return f"ragezine-submission-{submission.id}-{artist_segment}.zip"
 
 
-def _iter_submission_files(submission):
-    if submission.text_file:
-        yield submission.text_file
-
-    for text in submission.texts.all():
-        yield text.file
-
-    for visual in submission.visuals.all():
-        yield visual.image
-
-
 def _format_submission_details(submission):
     countries_residence = ", ".join(
         country_name(code) for code in submission.countries_residence
     ) or "-"
     socials = submission.socials or "-"
-    attached_files = [Path(stored_file.name).name for stored_file in _iter_submission_files(submission)]
+    attached_files = [Path(stored_file.name).name for stored_file in iter_submission_files(submission)]
 
     if not attached_files:
         attached_files = ["-"]
@@ -100,8 +92,6 @@ def _format_excel_field(submission, field_name):
         return country_name(submission.country_origin)
     if field_name == "countries_residence":
         return ", ".join(country_name(code) for code in submission.countries_residence)
-    if field_name == "text_file":
-        return Path(submission.text_file.name).name if submission.text_file else ""
     if field_name == "created_at":
         return submission.created_at.replace(tzinfo=None)
     return getattr(submission, field_name)
@@ -138,7 +128,7 @@ def _autosize_worksheet(worksheet):
 
 
 def _build_excel_workbook():
-    submissions = list(Submission.objects.all())
+    submissions = list(submission_repository.list())
     buffer = BytesIO()
     workbook = Workbook()
     default_sheet = workbook.active
@@ -187,7 +177,7 @@ def _build_excel_workbook():
 
 def _build_complete_download_zip():
     buffer = BytesIO()
-    submissions = Submission.objects.prefetch_related("texts", "visuals").all()
+    submissions = submission_repository.list_with_documents()
 
     with ZipFile(buffer, "w", compression=ZIP_DEFLATED) as archive:
         for submission_type in Submission.SubmissionType:
@@ -205,7 +195,7 @@ def _build_complete_download_zip():
             )
 
             used_names = set()
-            for stored_file in _iter_submission_files(submission):
+            for stored_file in iter_submission_files(submission):
                 file_name = _safe_path_segment(
                     Path(stored_file.name).name,
                     f"file-{len(used_names) + 1}",
@@ -241,7 +231,7 @@ def _write_submission_to_archive(archive, submission):
     )
 
     used_names = set()
-    for stored_file in _iter_submission_files(submission):
+    for stored_file in iter_submission_files(submission):
         file_name = _safe_path_segment(
             Path(stored_file.name).name,
             f"file-{len(used_names) + 1}",
@@ -273,7 +263,31 @@ def _build_submission_download_zip(submission):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
+def document_download(request, document_id):
+    document = get_object_or_404(SubmissionDocument, pk=document_id)
+    stored_file = document.file
+    if not stored_file.name or not stored_file.storage.exists(stored_file.name):
+        raise Http404("Document file not found.")
+
+    filename = _safe_path_segment(
+        document.original_filename or Path(stored_file.name).name,
+        f"document-{document_id}",
+    )
+    try:
+        stored_file.open("rb")
+    except OSError as exc:
+        raise Http404("Document file not found.") from exc
+    return FileResponse(
+        stored_file,
+        as_attachment=True,
+        filename=filename,
+        content_type="application/octet-stream",
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
 def complete_download(request):
     zip_bytes = _build_complete_download_zip()
     response = HttpResponse(zip_bytes, content_type="application/zip")
@@ -283,10 +297,10 @@ def complete_download(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def submission_download(request, submission_id):
     submission = get_object_or_404(
-        Submission.objects.prefetch_related("texts", "visuals"),
+        submission_repository.list_with_documents(),
         pk=submission_id,
     )
     zip_bytes, export_filename = _build_submission_download_zip(submission)
@@ -297,7 +311,7 @@ def submission_download(request, submission_id):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def excel_download(request):
     workbook_bytes, export_filename = _build_excel_workbook()
     response = HttpResponse(

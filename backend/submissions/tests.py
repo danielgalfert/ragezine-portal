@@ -8,10 +8,12 @@ from openpyxl import load_workbook
 from rest_framework import status
 from rest_framework.test import APIClient
 from io import BytesIO
+from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 
 from submissions.api.email import send_submission_emails
-from submissions.models import Submission, SubmissionText, SubmissionVisual
+from submissions.models import Submission, SubmissionDocument
+from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
 class AuthenticationEndpointsTests(TestCase):
@@ -20,6 +22,7 @@ class AuthenticationEndpointsTests(TestCase):
         self.user = get_user_model().objects.create_user(
             username="editor",
             password="S3cretPass123",
+            is_staff=True,
         )
 
     def test_login_session_and_logout_flow(self):
@@ -87,13 +90,104 @@ class SubmissionValidationTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data)
 
+    def test_submission_uploads_are_stored_as_documents(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["visuals"] = SimpleUploadedFile(
+            "image.tiff",
+            b"image content",
+            content_type="image/tiff",
+        )
+
+        response = self.client.post("/api/submissions/", payload, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        submission = Submission.objects.get(pk=response.data["id"])
+        documents = submission.documents.order_by("document_type", "original_filename")
+
+        self.assertEqual(documents.count(), 2)
+        self.assertEqual(
+            [document.document_type for document in documents],
+            [
+                SubmissionDocument.DocumentType.TEXT,
+                SubmissionDocument.DocumentType.VISUAL,
+            ],
+        )
+        self.assertEqual(len(response.data["documents"]), 2)
+        self.assertTrue(all("file" not in item for item in response.data["documents"]))
+        self.assertTrue(all("/api/downloads/documents/" in item["download_url"] for item in response.data["documents"]))
+
+        staff_user = get_user_model().objects.create_user(
+            username="document-editor", password="S3cretPass123", is_staff=True
+        )
+        self.client.force_authenticate(staff_user)
+        text_document = documents.get(document_type=SubmissionDocument.DocumentType.TEXT)
+        download_response = self.client.get(f"/api/downloads/documents/{text_document.pk}/")
+        self.assertEqual(download_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(b"".join(download_response.streaming_content), b"test file content")
+        download_response.close()
+        self.assertEqual(self.client.get(f"/media/{text_document.file.name}").status_code, 404)
+
+
+class SubmissionRepositoryTests(TestCase):
+    def test_repositories_create_submission_and_documents(self):
+        submission_repository = SubmissionRepository()
+        document_repository = SubmissionDocumentRepository()
+
+        submission = submission_repository.create(
+            {
+                "title": "Repository Piece",
+                "description": "Detailed description for repository testing.",
+                "submission_type": Submission.SubmissionType.POETRY,
+                "artist_name": "Repository Artist",
+                "pronouns": "they/them",
+                "short_bio": "A short but valid bio for repository testing.",
+                "email": "repo@example.com",
+                "country_origin": "DK",
+                "countries_residence": ["DK"],
+                "language": "English",
+                "allow_translation": True,
+            }
+        )
+        document_repository.create_text_document(
+            submission=submission,
+            uploaded_file=SimpleUploadedFile(
+                "repo-piece.pdf",
+                b"repo content",
+                content_type="application/pdf",
+            ),
+        )
+
+        loaded = submission_repository.get_with_documents(submission.id)
+
+        self.assertEqual(loaded.title, "Repository Piece")
+        self.assertEqual(loaded.documents.count(), 1)
+        self.assertEqual(
+            loaded.documents.first().document_type,
+            SubmissionDocument.DocumentType.TEXT,
+        )
+
 
 class SubmissionDownloadsTests(TestCase):
     def setUp(self):
+        media_dir = TemporaryDirectory()
+        self.addCleanup(media_dir.cleanup)
+        storage_override = override_settings(
+            STORAGES={
+                **settings.STORAGES,
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                    "OPTIONS": {"location": media_dir.name},
+                },
+            }
+        )
+        storage_override.enable()
+        self.addCleanup(storage_override.disable)
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
             username="admin",
             password="S3cretPass123",
+            is_staff=True,
         )
         self.client.force_authenticate(self.user)
 
@@ -112,23 +206,21 @@ class SubmissionDownloadsTests(TestCase):
             countries_residence=["DK"],
             language="English",
             allow_translation=True,
-            text_file=SimpleUploadedFile("legacy.txt", b"legacy file"),
         )
-        SubmissionText.objects.create(
+        SubmissionDocument.create_from_upload(
             submission=submission,
-            file=SimpleUploadedFile(
-                "poem.pdf",
-                b"poem content",
-                content_type="application/pdf",
-            ),
+            uploaded_file=SimpleUploadedFile("legacy.txt", b"legacy file"),
+            document_type=SubmissionDocument.DocumentType.TEXT,
         )
-        SubmissionVisual.objects.create(
+        SubmissionDocument.create_from_upload(
             submission=submission,
-            image=SimpleUploadedFile(
-                "image.tiff",
-                b"image content",
-                content_type="image/tiff",
-            ),
+            uploaded_file=SimpleUploadedFile("poem.pdf", b"poem content", content_type="application/pdf"),
+            document_type=SubmissionDocument.DocumentType.TEXT,
+        )
+        SubmissionDocument.create_from_upload(
+            submission=submission,
+            uploaded_file=SimpleUploadedFile("image.tiff", b"image content", content_type="image/tiff"),
+            document_type=SubmissionDocument.DocumentType.VISUAL,
         )
 
         response = self.client.get("/api/downloads/complete/")
@@ -139,12 +231,12 @@ class SubmissionDownloadsTests(TestCase):
         with ZipFile(BytesIO(response.content)) as archive:
             names = archive.namelist()
             self.assertIn("poetry/", names)
-            self.assertIn("poetry/Artist_One/submission.txt", names)
+            self.assertIn("poetry/Artist_One/submission_details.txt", names)
             self.assertIn("poetry/Artist_One/legacy.txt", names)
             self.assertIn("poetry/Artist_One/poem.pdf", names)
             self.assertIn("poetry/Artist_One/image.tiff", names)
 
-            details = archive.read("poetry/Artist_One/submission.txt").decode("utf-8")
+            details = archive.read("poetry/Artist_One/submission_details.txt").decode("utf-8")
             self.assertIn("Title: Archive Piece", details)
             self.assertIn("Email: artist@example.com", details)
             self.assertIn("- legacy.txt", details)
@@ -198,7 +290,6 @@ class SubmissionDownloadsTests(TestCase):
             "Country Origin",
             "Countries Residence",
             "Language",
-            "Text File",
             "Created At",
         ]
 
@@ -235,15 +326,21 @@ class SubmissionEmailTests(TestCase):
             countries_residence=["DE"],
             language="English",
             allow_translation=True,
-            text_file=SimpleUploadedFile("mail-piece.pdf", b"primary text"),
         )
-        SubmissionText.objects.create(
+        SubmissionDocument.create_from_upload(
             submission=submission,
-            file=SimpleUploadedFile("mail-extra.pdf", b"extra text"),
+            uploaded_file=SimpleUploadedFile("mail-piece.pdf", b"primary text"),
+            document_type=SubmissionDocument.DocumentType.TEXT,
         )
-        SubmissionVisual.objects.create(
+        SubmissionDocument.create_from_upload(
             submission=submission,
-            image=SimpleUploadedFile("mail-visual.png", b"visual bytes"),
+            uploaded_file=SimpleUploadedFile("mail-extra.pdf", b"extra text"),
+            document_type=SubmissionDocument.DocumentType.TEXT,
+        )
+        SubmissionDocument.create_from_upload(
+            submission=submission,
+            uploaded_file=SimpleUploadedFile("mail-visual.png", b"visual bytes"),
+            document_type=SubmissionDocument.DocumentType.VISUAL,
         )
 
         sent = send_submission_emails(submission)
