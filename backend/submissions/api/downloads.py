@@ -7,10 +7,11 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.utils.text import get_valid_filename
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAdminUser
 
 from submissions.documents import iter_submission_files
+from submissions.api.throttles import StaffExportThrottle
 from submissions.models import Submission, SubmissionDocument
 from submissions.repositories import SubmissionRepository
 from submissions.serializers import country_name
@@ -288,6 +289,7 @@ def document_download(request, document_id):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
+@throttle_classes([StaffExportThrottle])
 def complete_download(request):
     zip_bytes = _build_complete_download_zip()
     response = HttpResponse(zip_bytes, content_type="application/zip")
@@ -298,6 +300,7 @@ def complete_download(request):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
+@throttle_classes([StaffExportThrottle])
 def submission_download(request, submission_id):
     submission = get_object_or_404(
         submission_repository.list_with_documents(),
@@ -312,6 +315,7 @@ def submission_download(request, submission_id):
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
+@throttle_classes([StaffExportThrottle])
 def excel_download(request):
     workbook_bytes, export_filename = _build_excel_workbook()
     response = HttpResponse(
