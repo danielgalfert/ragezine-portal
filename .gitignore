@@ -223,4 +223,8 @@ __marimo__/
 # Local environment files
 .env
 */.env
-.env
+
+# Project-local runtime files
+backend/rage-env/
+backend/media/
+backend/staticfiles/
