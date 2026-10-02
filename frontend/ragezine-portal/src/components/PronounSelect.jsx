@@ -1,6 +1,6 @@
 import Select from "react-select";
 
-export const pronounOptions = [
+const pronounOptions = [
   { value: "she/her", label: "She / Her" },
   { value: "he/him", label: "He / Him" },
   { value: "they/them", label: "They / Them" },

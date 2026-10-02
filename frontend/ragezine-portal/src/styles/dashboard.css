@@ -173,6 +173,23 @@
   color: black;
 }
 
+.dashboard-document-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+}
+
+.dashboard-document-list a {
+  color: #4d2d84;
+  font-family: "NewEdge666Light", sans-serif;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .dashboard-row-action {
   display: flex;
   justify-content: center;

@@ -207,6 +207,15 @@ export default function DashboardSubmissionsList() {
                   <div className="dashboard-row-title">
                     <strong>{submission.title}</strong>
                     <p>{submission.description || submission.short_bio || "No description provided."}</p>
+                    {submission.documents?.length > 0 && (
+                      <div className="dashboard-document-list">
+                        {submission.documents.map((document) => (
+                          <a key={document.id} href={document.download_url} title={`Download ${document.original_filename}`}>
+                            {document.original_filename || `Document ${document.id}`}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="dashboard-row-type">
                     {(submission.submission_type || "other").replaceAll("_", " ")}

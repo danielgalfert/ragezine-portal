@@ -27,7 +27,7 @@ export default function LoginPage() {
       try {
         await getCsrfCookie();
         const session = await getSession();
-        if (session?.authenticated) {
+        if (session?.authenticated && session?.user?.is_staff) {
           navigate("/dashboard", { replace: true });
           return;
         }

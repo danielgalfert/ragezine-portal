@@ -1,3 +1,5 @@
+// This deliberately matches ASCII control characters while preserving tabs and newlines.
+// eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
 const MULTISPACE_RE = /[ \t]+/g;
 const SIMPLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
