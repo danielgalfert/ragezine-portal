@@ -22,6 +22,7 @@ function triggerBrowserDownload(blob, filename) {
 
 export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
+  const [hasStaffAccess, setHasStaffAccess] = useState(false);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
   const [downloadingComplete, setDownloadingComplete] = useState(false);
   const navigate = useNavigate();
@@ -30,10 +31,11 @@ export default function DashboardPage() {
     async function bootstrap() {
       try {
         const session = await getSession();
-        if (!session?.authenticated) {
+        if (!session?.authenticated || !session?.user?.is_staff) {
           navigate("/login", { replace: true });
           return;
         }
+        setHasStaffAccess(true);
       } catch {
         navigate("/login", { replace: true });
         return;
@@ -89,6 +91,10 @@ export default function DashboardPage() {
         </div>
       </main>
     );
+  }
+
+  if (!hasStaffAccess) {
+    return null;
   }
 
   return (
