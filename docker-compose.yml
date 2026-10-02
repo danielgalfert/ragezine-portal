@@ -63,6 +63,12 @@ services:
 
   nginx:
     build: ./frontend/ragezine-portal
+    environment:
+      RAGEZINE_NGINX_LOGIN_RATE: ${RAGEZINE_NGINX_LOGIN_RATE:-15r/m}
+      RAGEZINE_NGINX_LOGIN_BURST: ${RAGEZINE_NGINX_LOGIN_BURST:-8}
+      RAGEZINE_NGINX_SUBMISSION_RATE: ${RAGEZINE_NGINX_SUBMISSION_RATE:-5r/m}
+      RAGEZINE_NGINX_SUBMISSION_BURST: ${RAGEZINE_NGINX_SUBMISSION_BURST:-5}
+      NGINX_ENVSUBST_FILTER: ^RAGEZINE_NGINX_
     depends_on:
       backend:
         condition: service_healthy
