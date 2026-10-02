@@ -24,6 +24,20 @@ Copy `.env.example` to `.env`, then set a unique `DJANGO_SECRET_KEY` and `POSTGR
 
 The backend can also run locally with SQLite by setting `DJANGO_DB_ENGINE=sqlite`; Compose explicitly selects PostgreSQL. For frontend development, run `npm run dev` in `frontend/ragezine-portal` and the Django development server in `backend`.
 
+## Submission upload limits
+
+The root `.env` sets `RAGEZINE_MAX_FILE_MB=20` for each file and
+`RAGEZINE_MAX_TOTAL_FILES_MB=50` for all files in one submission. These
+values are measured in MiB (1,048,576 bytes). Django
+rejects oversized submissions with HTTP 400 before saving a record or files.
+The Compose nginx proxy also caps the entire request body with
+`RAGEZINE_NGINX_MAX_BODY_SIZE=55m` and returns HTTP 413 when that cap is
+exceeded. Keep the nginx cap above the total file cap to allow for multipart
+form fields. Add these entries from `.env.example` to any existing deployment
+`.env`, then recreate the backend and nginx containers to apply changes.
+Submission emails currently attach the uploaded files, so choose a combined
+limit that your email provider can deliver.
+
 ## Code map
 
 - `frontend/ragezine-portal/src/App.jsx`: browser routes for the form, login, and dashboard.
