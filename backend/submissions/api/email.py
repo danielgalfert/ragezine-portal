@@ -5,18 +5,8 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils.html import escape
 
+from submissions.documents import iter_submission_files
 from submissions.serializers import country_name
-
-
-def _iter_submission_files(submission):
-    if submission.text_file:
-        yield submission.text_file
-
-    for text in submission.texts.all():
-        yield text.file
-
-    for visual in submission.visuals.all():
-        yield visual.image
 
 
 def _submission_detail_rows(submission):
@@ -24,7 +14,7 @@ def _submission_detail_rows(submission):
         country_name(code) for code in submission.countries_residence
     ) or "-"
 
-    attached_files = [Path(stored_file.name).name for stored_file in _iter_submission_files(submission)]
+    attached_files = [Path(stored_file.name).name for stored_file in iter_submission_files(submission)]
     attached_files_label = ", ".join(attached_files) if attached_files else "-"
 
     return [
@@ -114,7 +104,7 @@ def _build_message(submission, recipient):
     )
     message.attach_alternative(_build_html_body(submission, corpus), "text/html")
 
-    for stored_file in _iter_submission_files(submission):
+    for stored_file in iter_submission_files(submission):
         stored_file.open("rb")
         try:
             content_type = mimetypes.guess_type(stored_file.name)[0] or "application/octet-stream"

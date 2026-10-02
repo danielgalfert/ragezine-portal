@@ -36,7 +36,7 @@ def login_view(request):
         )
 
     user = authenticate(request, username=username, password=password)
-    if user is None:
+    if user is None or not user.is_staff:
         return Response(
             {"message": "Invalid username or password."},
             status=status.HTTP_400_BAD_REQUEST,

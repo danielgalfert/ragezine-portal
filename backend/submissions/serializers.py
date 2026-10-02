@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Submission, SubmissionText, SubmissionVisual
+from django.urls import reverse
+from .models import Submission, SubmissionDocument
 import pycountry
 from submissions.utils import sanitize_multiline, sanitize_single_line
 
@@ -39,16 +40,25 @@ def is_valid_country_code(code):
 
 
 
-class SubmissionVisualSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SubmissionVisual
-        fields = ["id", "image", "created_at"]
+class SubmissionDocumentSerializer(serializers.ModelSerializer):
+    download_url = serializers.SerializerMethodField()
 
+    def get_download_url(self, obj):
+        url = reverse("downloads-document", args=[obj.pk])
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
 
-class SubmissionTextSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SubmissionText
-        fields = ["id", "file", "created_at"]
+        model = SubmissionDocument
+        fields = [
+            "id",
+            "document_type",
+            "download_url",
+            "original_filename",
+            "content_type",
+            "size",
+            "created_at",
+        ]
 
 
 class SubmissionSerializer(serializers.ModelSerializer):
@@ -60,8 +70,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         required=False,
         allow_empty=True,
     )
-    visuals = SubmissionVisualSerializer(many=True, read_only=True)
-    texts = SubmissionTextSerializer(many=True, read_only=True)
+    documents = SubmissionDocumentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Submission
@@ -81,9 +90,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "countries_residence_names",
             "language",
             "allow_translation",
-            "text_file",
-            "texts",
-            "visuals",
+            "documents",
             "created_at",
             "updated_at",
         ]
@@ -190,7 +197,6 @@ class SubmissionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         request = self.context.get("request")
 
-        text_file = attrs.get("text_file")
         language = attrs.get("language", "English")
         allow_translation = attrs.get("allow_translation", False)
 
@@ -201,7 +207,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             visuals = request.FILES.getlist("visuals")
 
         # Rule: there must be a text file or at least one visual
-        if not text_file and not text_files and not visuals:
+        if not text_files and not visuals:
             raise serializers.ValidationError(
                 "A submission must include a text file or at least one visual."
             )

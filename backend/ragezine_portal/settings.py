@@ -5,6 +5,7 @@ Django settings for ragezine_portal project.
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from .database import get_database_handler
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -72,26 +73,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "ragezine_portal.wsgi.application"
 
-db_engine = os.getenv("DJANGO_DB_ENGINE", "sqlite").lower()
-
-if db_engine in {"postgres", "postgresql"}:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB", "ragezine_portal"),
-            "USER": os.getenv("POSTGRES_USER", "postgres"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
-            "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
-            "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+DATABASE_HANDLER = get_database_handler(os.getenv("DJANGO_DB_ENGINE", "sqlite"))
+DATABASES = {"default": DATABASE_HANDLER.configuration(BASE_DIR, os.environ)}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -145,8 +128,46 @@ USE_I18N = True
 USE_TZ = True
 
 
-STATIC_URL = "static/"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = os.getenv("DJANGO_MEDIA_URL", "/media/")
+MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
+
+STORAGE_BACKEND = os.getenv("RAGEZINE_STORAGE_BACKEND", "local").lower()
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": MEDIA_ROOT,
+            "base_url": MEDIA_URL,
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+if STORAGE_BACKEND == "s3":
+    AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "")
+    AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "")
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+    AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "")
+    AWS_QUERYSTRING_AUTH = os.getenv("AWS_QUERYSTRING_AUTH", "1") in {"1", "true", "True"}
+    AWS_DEFAULT_ACL = None
+
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL or None,
+            "region_name": AWS_S3_REGION_NAME or None,
+            "access_key": AWS_ACCESS_KEY_ID or None,
+            "secret_key": AWS_SECRET_ACCESS_KEY or None,
+            "querystring_auth": AWS_QUERYSTRING_AUTH,
+            "default_acl": AWS_DEFAULT_ACL,
+        },
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

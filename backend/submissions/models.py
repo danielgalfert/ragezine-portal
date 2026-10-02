@@ -1,8 +1,19 @@
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
+from django.conf import settings
 
 
 VOLUME_NUMBER = 3
+
+
+def submission_document_upload_path(instance, filename):
+    document_type = instance.document_type or SubmissionDocument.DocumentType.TEXT
+    folder = (
+        "visuals"
+        if document_type == SubmissionDocument.DocumentType.VISUAL
+        else "texts"
+    )
+    return f"submissions/{folder}/{filename}"
+
 
 class Submission(models.Model):
     class SubmissionType(models.TextChoices):
@@ -22,28 +33,18 @@ class Submission(models.Model):
 
     volume = models.IntegerField(default=VOLUME_NUMBER)
 
-
-    #Personal info
     artist_name = models.CharField(max_length=255)
     pronouns = models.CharField(max_length=128)
     short_bio = models.TextField()
 
-
-    #Contact info
     socials = models.CharField(max_length=500, blank=True)
     email = models.EmailField()
 
     country_origin = models.TextField()
-    countries_residence = ArrayField(
-        base_field=models.CharField(max_length=100),
-        default=list,
-        blank=True,
-    )
+    countries_residence = settings.DATABASE_HANDLER.residence_field()
 
     language = models.CharField(max_length=64, default="English")
     allow_translation = models.BooleanField(default=False)
-
-    text_file = models.FileField(upload_to="submissions/texts/", blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -55,33 +56,55 @@ class Submission(models.Model):
         return f"{self.artist_name} — {self.title}"
 
 
-class SubmissionVisual(models.Model):
+class SubmissionDocumentQuerySet(models.QuerySet):
+    def texts(self):
+        return self.filter(document_type=SubmissionDocument.DocumentType.TEXT)
+
+    def visuals(self):
+        return self.filter(document_type=SubmissionDocument.DocumentType.VISUAL)
+
+
+class SubmissionDocument(models.Model):
+    class DocumentType(models.TextChoices):
+        TEXT = "text", "Text"
+        VISUAL = "visual", "Visual"
+
     submission = models.ForeignKey(
         Submission,
         on_delete=models.CASCADE,
-        related_name="visuals",
+        related_name="documents",
     )
-    image = models.FileField(upload_to="submissions/visuals/")
+    document_type = models.CharField(max_length=16, choices=DocumentType.choices)
+    file = models.FileField(upload_to=submission_document_upload_path)
+    original_filename = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=255, blank=True)
+    size = models.PositiveBigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = SubmissionDocumentQuerySet.as_manager()
 
     class Meta:
         ordering = ["created_at"]
+        indexes = [
+            models.Index(
+                fields=["submission", "document_type"],
+                name="submission__submiss_6825b9_idx",
+            ),
+        ]
+
+    @classmethod
+    def create_from_upload(cls, submission, uploaded_file, document_type):
+        return cls.objects.create(
+            submission=submission,
+            document_type=document_type,
+            file=uploaded_file,
+            original_filename=uploaded_file.name or "",
+            content_type=getattr(uploaded_file, "content_type", "") or "",
+            size=getattr(uploaded_file, "size", 0) or 0,
+        )
 
     def __str__(self):
-        return f"Visual for {self.submission_id}: {self.image.name}"
-
-
-class SubmissionText(models.Model):
-    submission = models.ForeignKey(
-        Submission,
-        on_delete=models.CASCADE,
-        related_name="texts",
-    )
-    file = models.FileField(upload_to="submissions/texts/")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["created_at"]
-
-    def __str__(self):
-        return f"Text for {self.submission_id}: {self.file.name}"
+        return (
+            f"{self.get_document_type_display()} "
+            f"for {self.submission_id}: {self.file.name}"
+        )

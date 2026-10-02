@@ -4,7 +4,7 @@ import random
 import sys
 from pathlib import Path
 
-from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -17,7 +17,11 @@ import django  # noqa: E402
 
 django.setup()
 
-from submissions.models import Submission, SubmissionText, SubmissionVisual  # noqa: E402
+from submissions.models import Submission  # noqa: E402
+from submissions.repositories import (  # noqa: E402
+    SubmissionDocumentRepository,
+    SubmissionRepository,
+)
 
 
 FIRST_NAMES = [
@@ -41,6 +45,8 @@ LANGUAGES = ["English", "Spanish", "Danish", "French", "German", "Italian", "Por
 PRONOUNS = ["she/her", "he/him", "they/them", "she/they", "he/they", "xe/xem", "ze/zir", "any", "other"]
 COUNTRY_CODES = ["DK", "SE", "NO", "DE", "FR", "IT", "ES", "PT", "GB", "US", "CA", "EG", "PK", "SK"]
 SOCIAL_DOMAINS = ["instagram.com", "substack.com", "artist.site", "portfolio.example", "tiktok.com"]
+submission_repository = SubmissionRepository()
+document_repository = SubmissionDocumentRepository()
 DESCRIPTION_FRAGMENTS = [
     "A study in feminist anger and collective memory.",
     "Built from diary fragments, annotations, and found images.",
@@ -138,15 +144,11 @@ def build_image_bytes(index):
 
 
 def delete_existing_submissions():
-    for submission in Submission.objects.prefetch_related("texts", "visuals"):
-        if submission.text_file:
-            submission.text_file.delete(save=False)
-        for text in submission.texts.all():
-            text.file.delete(save=False)
-        for visual in submission.visuals.all():
-            visual.image.delete(save=False)
+    for submission in submission_repository.list_with_documents():
+        for document in submission.documents.all():
+            document.file.delete(save=False)
 
-    Submission.objects.all().delete()
+    submission_repository.list().delete()
 
 
 def create_mock_submission(index):
@@ -157,20 +159,22 @@ def create_mock_submission(index):
     language = random.choice(LANGUAGES)
     allow_translation = language == "English" or random.choice([True, False])
 
-    submission = Submission.objects.create(
-        title=title,
-        year=random.choice(YEARS),
-        description=make_description(),
-        submission_type=submission_type,
-        artist_name=artist_name,
-        pronouns=random.choice(PRONOUNS),
-        short_bio=make_short_bio(),
-        socials=make_socials(artist_name),
-        email=make_email(artist_name, index),
-        country_origin=country_origin,
-        countries_residence=make_countries_residence(country_origin),
-        language=language,
-        allow_translation=allow_translation,
+    submission = submission_repository.create(
+        {
+            "title": title,
+            "year": random.choice(YEARS),
+            "description": make_description(),
+            "submission_type": submission_type,
+            "artist_name": artist_name,
+            "pronouns": random.choice(PRONOUNS),
+            "short_bio": make_short_bio(),
+            "socials": make_socials(artist_name),
+            "email": make_email(artist_name, index),
+            "country_origin": country_origin,
+            "countries_residence": make_countries_residence(country_origin),
+            "language": language,
+            "allow_translation": allow_translation,
+        }
     )
 
     include_primary_text = submission_type in {
@@ -181,10 +185,14 @@ def create_mock_submission(index):
     } or random.choice([True, False])
 
     if include_primary_text:
-        submission.text_file.save(
-            f"{artist_name.lower().replace(' ', '_')}_{index}.pdf",
-            ContentFile(build_pdf_bytes(title, artist_name)),
-            save=True,
+        filename = f"{artist_name.lower().replace(' ', '_')}_{index}.pdf"
+        document_repository.create_text_document(
+            submission=submission,
+            uploaded_file=SimpleUploadedFile(
+                filename,
+                build_pdf_bytes(title, artist_name),
+                content_type="application/pdf",
+            ),
         )
 
     extra_text_count = random.randint(0, 2)
@@ -196,19 +204,25 @@ def create_mock_submission(index):
         extra_text_count = 1
 
     for text_index in range(extra_text_count):
-        submission_text = SubmissionText(submission=submission)
-        submission_text.file.save(
-            f"{artist_name.lower().replace(' ', '_')}_{index}_text_{text_index + 1}.pdf",
-            ContentFile(build_pdf_bytes(f"{title} draft {text_index + 1}", artist_name)),
-            save=True,
+        filename = f"{artist_name.lower().replace(' ', '_')}_{index}_text_{text_index + 1}.pdf"
+        document_repository.create_text_document(
+            submission=submission,
+            uploaded_file=SimpleUploadedFile(
+                filename,
+                build_pdf_bytes(f"{title} draft {text_index + 1}", artist_name),
+                content_type="application/pdf",
+            ),
         )
 
     for visual_index in range(visual_count):
-        submission_visual = SubmissionVisual(submission=submission)
-        submission_visual.image.save(
-            f"{artist_name.lower().replace(' ', '_')}_{index}_visual_{visual_index + 1}.png",
-            ContentFile(build_image_bytes(index + visual_index)),
-            save=True,
+        filename = f"{artist_name.lower().replace(' ', '_')}_{index}_visual_{visual_index + 1}.png"
+        document_repository.create_visual_document(
+            submission=submission,
+            uploaded_file=SimpleUploadedFile(
+                filename,
+                build_image_bytes(index + visual_index),
+                content_type="image/png",
+            ),
         )
 
 
