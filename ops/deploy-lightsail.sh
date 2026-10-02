@@ -21,6 +21,21 @@ if [[ ! -f "$env_file" ]]; then
   exit 1
 fi
 
+required_values=(
+  DJANGO_SECRET_KEY POSTGRES_PASSWORD DJANGO_ALLOWED_HOSTS
+  AWS_STORAGE_BUCKET_NAME AWS_S3_REGION_NAME AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+)
+for name in "${required_values[@]}"; do
+  if ! grep -Eq "^${name}=.+" "$env_file"; then
+    echo "Set $name in the server's private environment file before deploying" >&2
+    exit 1
+  fi
+done
+if ! grep -Eq '^RAGEZINE_STORAGE_BACKEND=s3$' "$env_file"; then
+  echo "Set RAGEZINE_STORAGE_BACKEND=s3 before deploying" >&2
+  exit 1
+fi
+
 mkdir -p "$release"
 tar -xzf "$archive" -C "$release"
 ln -sfn "$env_file" "$release/.env"
