@@ -1,5 +1,21 @@
 
 
 
-*/.env
+# Local environment files
 .env
+*/.env
+
+# Keep safe example env files committed
+!.env.example
+!*/.env.example
+
+# Uploaded submission files stay outside version control.
+backend/media/
+backend/rage-env/
+backend/db.sqlite3
+backend/staticfiles/
+__pycache__/
+*.pyc
+
+# Local system and debugging guide.
+/SYSTEM_GUIDE.local.md
