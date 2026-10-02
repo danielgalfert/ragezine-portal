@@ -107,6 +107,13 @@ REST_FRAMEWORK = {
     },
 }
 
+SUBMISSION_MAX_FILE_BYTES = int(os.getenv("RAGEZINE_MAX_FILE_MB", "20")) * 1024 * 1024
+SUBMISSION_MAX_TOTAL_FILES_BYTES = int(os.getenv("RAGEZINE_MAX_TOTAL_FILES_MB", "50")) * 1024 * 1024
+if SUBMISSION_MAX_FILE_BYTES <= 0 or SUBMISSION_MAX_TOTAL_FILES_BYTES < SUBMISSION_MAX_FILE_BYTES:
+    raise ImproperlyConfigured(
+        "RAGEZINE_MAX_FILE_MB must be positive and no larger than RAGEZINE_MAX_TOTAL_FILES_MB."
+    )
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",

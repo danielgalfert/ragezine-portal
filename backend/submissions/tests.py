@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
+from unittest.mock import patch
 
 from submissions.api.email import send_submission_emails
 from submissions.models import Submission, SubmissionDocument
@@ -127,6 +128,75 @@ class SubmissionValidationTests(TestCase):
         self.assertEqual(b"".join(download_response.streaming_content), b"test file content")
         download_response.close()
         self.assertEqual(self.client.get(f"/media/{text_document.file.name}").status_code, 404)
+
+
+class SubmissionSizeLimitTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def base_payload(self):
+        return {
+            "title": "A Valid Title",
+            "submission_type": "poetry",
+            "artist_name": "Artist Name",
+            "pronouns": "they/them",
+            "short_bio": "A short but valid bio for the submission.",
+            "country_origin": "DK",
+            "countries_residence": ["DK"],
+            "language": "English",
+            "allow_translation": True,
+            "email": "artist@example.com",
+        }
+
+    @override_settings(
+        SUBMISSION_MAX_FILE_BYTES=1024 * 1024,
+        SUBMISSION_MAX_TOTAL_FILES_BYTES=2 * 1024 * 1024,
+    )
+    def test_rejects_file_over_individual_limit_without_saving_submission(self):
+        payload = self.base_payload()
+        payload["text_files"] = SimpleUploadedFile("large.pdf", b"x" * (1024 * 1024 + 1))
+
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.50"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("text_files", response.data)
+        self.assertFalse(Submission.objects.exists())
+
+    @override_settings(
+        SUBMISSION_MAX_FILE_BYTES=1024 * 1024,
+        SUBMISSION_MAX_TOTAL_FILES_BYTES=1024 * 1024,
+    )
+    def test_rejects_files_over_combined_limit_without_saving_submission(self):
+        payload = self.base_payload()
+        payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * 600_000)
+        payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * 600_000)
+
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.51"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("non_field_errors", response.data)
+        self.assertFalse(Submission.objects.exists())
+
+    @override_settings(
+        SUBMISSION_MAX_FILE_BYTES=1024 * 1024,
+        SUBMISSION_MAX_TOTAL_FILES_BYTES=2 * 1024 * 1024,
+    )
+    def test_accepts_files_at_both_limits(self):
+        payload = self.base_payload()
+        payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * (1024 * 1024))
+        payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * (1024 * 1024))
+
+        with patch("submissions.api.submission_views.send_submission_emails"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.52"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(SubmissionDocument.objects.count(), 2)
 
 
 class SubmissionRepositoryTests(TestCase):
