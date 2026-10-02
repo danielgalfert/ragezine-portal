@@ -1,10 +1,11 @@
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
 
 from submissions.utils import sanitize_single_line
+from submissions.api.throttles import LoginIPThrottle, LoginUsernameThrottle
 
 
 def _serialize_user(user):
@@ -25,6 +26,7 @@ def csrf(request):
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([LoginIPThrottle, LoginUsernameThrottle])
 def login_view(request):
     username = sanitize_single_line(request.data.get("username"))
     password = request.data.get("password") or ""

@@ -35,7 +35,9 @@ class SubmissionPermissionTests(SimpleTestCase):
             action,
             return_value=Response({"ok": True}, status=expected_status),
         ) as handler:
-            response = getattr(client, method)(path, {}, format="json")
+            response = getattr(client, method)(
+                path, {}, format="json", REMOTE_ADDR="192.0.2.200"
+            )
         return response, handler
 
     def test_anonymous_visitors_can_create_submissions(self):
