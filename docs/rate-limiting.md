@@ -4,10 +4,10 @@ The API applies these defaults:
 
 | Endpoint | Key | Default limit |
 | --- | --- | --- |
-| `POST /api/submissions/` | Client IP | 3 per hour |
-| `POST /api/auth/login/` | Client IP | 10 per minute |
-| `POST /api/auth/login/` | Normalized username | 5 per minute |
-| Complete ZIP, Excel, and submission ZIP downloads | Staff account | 10 per hour across these exports |
+| `POST /api/submissions/` | Client IP | 5 per hour |
+| `POST /api/auth/login/` | Client IP | 15 per minute |
+| `POST /api/auth/login/` | Normalized username | 8 per minute |
+| Complete ZIP, Excel, and submission ZIP downloads | Staff account | 20 per hour across these exports |
 
 Rejected API requests return HTTP 429 with a `Retry-After` header. The
 username cache key is hashed so the cache does not retain usernames in keys.
@@ -18,8 +18,13 @@ and returns HTTP 429 before forwarding them to Django.
 Set `RAGEZINE_SUBMISSION_RATE`, `RAGEZINE_LOGIN_IP_RATE`,
 `RAGEZINE_LOGIN_USERNAME_RATE`, and `RAGEZINE_EXPORT_RATE` in the root
 `.env` to change the limits. Rates use the Django REST Framework format,
-such as `5/minute` or `3/hour`. Test any change against real submission
-traffic, especially users sharing a public IP address.
+such as `8/minute` or `5/hour`. The same file sets
+`RAGEZINE_NGINX_LOGIN_RATE`, `RAGEZINE_NGINX_LOGIN_BURST`,
+`RAGEZINE_NGINX_SUBMISSION_RATE`, and `RAGEZINE_NGINX_SUBMISSION_BURST`
+for the Compose proxy. nginx rates use values such as `15r/m`, and bursts
+are integer request counts. Recreate nginx after changing its settings;
+restart Django after changing its settings. Test any change against real
+submission traffic, especially users sharing a public IP address.
 
 Docker Compose starts an internal Redis service and sets
 `RAGEZINE_REDIS_URL=redis://redis:6379/0` for Django. Production deployments

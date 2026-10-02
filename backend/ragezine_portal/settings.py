@@ -100,10 +100,10 @@ REST_FRAMEWORK = {
     # nginx is the sole proxy directly in front of Django in docker-compose.
     "NUM_PROXIES": int(os.getenv("RAGEZINE_PROXY_COUNT", "1")),
     "DEFAULT_THROTTLE_RATES": {
-        "submission_create": os.getenv("RAGEZINE_SUBMISSION_RATE", "3/hour"),
-        "login_ip": os.getenv("RAGEZINE_LOGIN_IP_RATE", "10/minute"),
-        "login_username": os.getenv("RAGEZINE_LOGIN_USERNAME_RATE", "5/minute"),
-        "staff_export": os.getenv("RAGEZINE_EXPORT_RATE", "10/hour"),
+        "submission_create": os.getenv("RAGEZINE_SUBMISSION_RATE", "5/hour"),
+        "login_ip": os.getenv("RAGEZINE_LOGIN_IP_RATE", "15/minute"),
+        "login_username": os.getenv("RAGEZINE_LOGIN_USERNAME_RATE", "8/minute"),
+        "staff_export": os.getenv("RAGEZINE_EXPORT_RATE", "20/hour"),
     },
 }
 
