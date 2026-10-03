@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -77,7 +78,7 @@ class RateLimitEndpointTests(TestCase):
         )
         self.client.force_authenticate(user=first_staff)
 
-        with patch("submissions.api.downloads._build_complete_download_zip", return_value=b"zip"):
+        with patch("submissions.api.downloads._build_complete_download_zip", side_effect=lambda: BytesIO(b"zip")):
             with patch(
                 "submissions.api.downloads._build_excel_workbook",
                 return_value=(b"excel", "submissions.xlsx"),

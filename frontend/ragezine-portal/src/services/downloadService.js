@@ -26,23 +26,19 @@ function buildDownloadPayload(response, fallbackFilename = "download.zip") {
   };
 }
 
-export function triggerBlobDownload(blob, filename) {
-  const url = window.URL.createObjectURL(blob);
+function startServerDownload(path) {
+  const apiBase = new URL(client.defaults.baseURL, window.location.href);
   const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
+  anchor.href = new URL(path, apiBase).toString();
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  window.URL.revokeObjectURL(url);
 }
 
-export async function downloadCompleteArchive() {
-  const response = await client.get("/downloads/complete/", {
-    responseType: "blob",
-  });
-
-  return buildDownloadPayload(response);
+export function downloadCompleteArchive() {
+  startServerDownload("downloads/complete/");
 }
 
 export async function downloadExcelReview() {
@@ -53,10 +49,6 @@ export async function downloadExcelReview() {
   return buildDownloadPayload(response, "submissions.xlsx");
 }
 
-export async function downloadSubmissionArchive(submissionId) {
-  const response = await client.get(`/downloads/submissions/${submissionId}/`, {
-    responseType: "blob",
-  });
-
-  return buildDownloadPayload(response, `submission-${submissionId}.zip`);
+export function downloadSubmissionArchive(submissionId) {
+  startServerDownload(`downloads/submissions/${submissionId}/`);
 }

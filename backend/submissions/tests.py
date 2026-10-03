@@ -129,6 +129,32 @@ class SubmissionValidationTests(TestCase):
         download_response.close()
         self.assertEqual(self.client.get(f"/media/{text_document.file.name}").status_code, 404)
 
+    def test_video_is_stored_as_visual_document(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["visuals"] = SimpleUploadedFile(
+            "clip.mp4", b"video bytes", content_type="video/mp4"
+        )
+
+        with patch("submissions.api.submission_views.send_submission_emails"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.53"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        video = SubmissionDocument.objects.get(original_filename="clip.mp4")
+        self.assertEqual(video.document_type, SubmissionDocument.DocumentType.VISUAL)
+        self.assertEqual(video.size, len(b"video bytes"))
+
+        staff_user = get_user_model().objects.create_user(
+            username="video-editor", password="S3cretPass123", is_staff=True
+        )
+        self.client.force_authenticate(staff_user)
+        download = self.client.get(f"/api/downloads/documents/{video.pk}/")
+        self.assertEqual(download.status_code, status.HTTP_200_OK)
+        self.assertEqual(b"".join(download.streaming_content), b"video bytes")
+        download.close()
+
 
 class SubmissionSizeLimitTests(TestCase):
     def setUp(self):
@@ -298,7 +324,7 @@ class SubmissionDownloadsTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/zip")
 
-        with ZipFile(BytesIO(response.content)) as archive:
+        with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
             names = archive.namelist()
             self.assertIn("poetry/", names)
             self.assertIn("poetry/Artist_One/submission_details.txt", names)
@@ -312,6 +338,7 @@ class SubmissionDownloadsTests(TestCase):
             self.assertIn("- legacy.txt", details)
             self.assertIn("- poem.pdf", details)
             self.assertIn("- image.tiff", details)
+        response.close()
 
     def test_excel_download_contains_review_sheet_and_submission_row(self):
         Submission.objects.create(
@@ -427,3 +454,9 @@ class SubmissionEmailTests(TestCase):
         self.assertEqual(mail.outbox[0].alternatives[0][1], "text/html")
         self.assertIn("Submission Received", mail.outbox[0].alternatives[0][0])
         self.assertIn("Artist Mail", mail.outbox[0].alternatives[0][0])
+
+        with override_settings(SUBMISSION_EMAIL_ATTACHMENT_MAX_BYTES=1):
+            send_submission_emails(submission)
+        self.assertEqual(len(mail.outbox[2].attachments), 0)
+        self.assertEqual(len(mail.outbox[3].attachments), 0)
+        self.assertIn("not attached to this email", mail.outbox[2].body)

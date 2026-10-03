@@ -120,7 +120,7 @@ class DownloadPermissionTests(SimpleTestCase):
         )
         with patch(
             "submissions.api.downloads._build_complete_download_zip",
-            return_value=b"zip",
+            side_effect=lambda: BytesIO(b"zip"),
         ), patch(
             "submissions.api.downloads._build_excel_workbook",
             return_value=(b"workbook", "review.xlsx"),
@@ -129,7 +129,7 @@ class DownloadPermissionTests(SimpleTestCase):
             return_value=object(),
         ), patch(
             "submissions.api.downloads._build_submission_download_zip",
-            return_value=(b"zip", "submission.zip"),
+            side_effect=lambda submission: (BytesIO(b"zip"), "submission.zip"),
         ):
             for url in self.urls:
                 with self.subTest(url=url):

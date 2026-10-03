@@ -26,17 +26,27 @@ The backend can also run locally with SQLite by setting `DJANGO_DB_ENGINE=sqlite
 
 ## Submission upload limits
 
-The root `.env` sets `RAGEZINE_MAX_FILE_MB=20` for each file and
-`RAGEZINE_MAX_TOTAL_FILES_MB=50` for all files in one submission. These
-values are measured in MiB (1,048,576 bytes). Django
+The root `.env` sets `RAGEZINE_MAX_FILE_MB=5120` (5 GiB) for each file and
+`RAGEZINE_MAX_TOTAL_FILES_MB=10240` (10 GiB) for all files in one submission.
+These values are measured in MiB (1,048,576 bytes). Django
 rejects oversized submissions with HTTP 400 before saving a record or files.
 The Compose nginx proxy also caps the entire request body with
-`RAGEZINE_NGINX_MAX_BODY_SIZE=55m` and returns HTTP 413 when that cap is
+`RAGEZINE_NGINX_MAX_BODY_SIZE=11g` and returns HTTP 413 when that cap is
 exceeded. Keep the nginx cap above the total file cap to allow for multipart
 form fields. Add these entries from `.env.example` to any existing deployment
 `.env`, then recreate the backend and nginx containers to apply changes.
-Submission emails currently attach the uploaded files, so choose a combined
-limit that your email provider can deliver.
+The browser does not time out submission uploads. The nginx proxy and Gunicorn
+wait up to `RAGEZINE_NGINX_PROXY_READ_TIMEOUT=14400s` and
+`RAGEZINE_GUNICORN_TIMEOUT=14400` while Django processes a request. The
+proxy and Django may each need temporary disk space for the request, in
+addition to the final file storage. Provision enough space for simultaneous
+uploads and generated ZIP downloads. Large archives are built on temporary
+disk and sent as streamed downloads rather than held in memory.
+
+Submission emails list all uploaded filenames. They attach files only when
+their combined size is at most `RAGEZINE_EMAIL_ATTACHMENT_MAX_MB=10`, so
+video submissions do not become enormous emails. This value also belongs in
+the deployment `.env`.
 
 ## Code map
 
