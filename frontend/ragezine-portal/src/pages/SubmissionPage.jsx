@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import CountrySelect from "../components/CountrySelect";
@@ -48,6 +48,8 @@ function countWords(s) {
 }
 
 export default function SubmissionPage() {
+  const textFileInputRef = useRef(null);
+  const visualFileInputRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [socialInput, setSocialInput] = useState("");
   const [textFiles, setTextFiles] = useState([]);
@@ -99,6 +101,8 @@ export default function SubmissionPage() {
     setSocialInput("");
     setTextFiles([]);
     setVisualFiles([]);
+    if (textFileInputRef.current) textFileInputRef.current.value = "";
+    if (visualFileInputRef.current) visualFileInputRef.current.value = "";
   }
 
   function openPopup(kind, title, messages) {
@@ -449,7 +453,7 @@ export default function SubmissionPage() {
               <hr className="hr" />
 
               <FormField label="Text upload (Word / Google Docs export)">
-                <input className="portal-file" type="file" accept=".doc,.docx,.pdf" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
+                <input ref={textFileInputRef} className="portal-file" type="file" accept=".doc,.docx,.pdf" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
                 <div className="portal-help">
                   Max {MAX_WORDS_TEXT} words.
                 </div>
@@ -469,7 +473,7 @@ export default function SubmissionPage() {
               </FormField>
 
               <FormField label={`Visuals or video upload - up to ${MAX_VISUALS} files`}>
-                <input className="portal-file" type="file" accept=".tif,.tiff,.mp4,.mov,.webm,image/tiff,video/mp4,video/quicktime,video/webm" multiple onChange={(e) => onPickVisuals(e.target.files)} />
+                <input ref={visualFileInputRef} className="portal-file" type="file" accept=".tif,.tiff,.mp4,.mov,.webm,image/tiff,video/mp4,video/quicktime,video/webm" multiple onChange={(e) => onPickVisuals(e.target.files)} />
 
                 {visualFiles.length > 0 && (
                   <ul className="portal-filelist">
