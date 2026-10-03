@@ -1,6 +1,8 @@
 from io import BytesIO
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
+from shutil import copyfileobj
+from tempfile import TemporaryFile
+from zipfile import ZIP_STORED, ZipFile
 
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse, Http404, HttpResponse
@@ -177,47 +179,22 @@ def _build_excel_workbook():
 
 
 def _build_complete_download_zip():
-    buffer = BytesIO()
+    buffer = TemporaryFile(mode="w+b")
     submissions = submission_repository.list_with_documents()
 
-    with ZipFile(buffer, "w", compression=ZIP_DEFLATED) as archive:
-        for submission_type in Submission.SubmissionType:
-            archive.writestr(f"{submission_type.value}/", b"")
+    try:
+        with ZipFile(buffer, "w", compression=ZIP_STORED, allowZip64=True) as archive:
+            for submission_type in Submission.SubmissionType:
+                archive.writestr(f"{submission_type.value}/", b"")
 
-        for submission in submissions:
-            artist_segment = _safe_path_segment(
-                submission.artist_name,
-                f"submission-{submission.id}",
-            )
-            submission_root = f"{submission.submission_type}/{artist_segment}"
-            archive.writestr(
-                f"{submission_root}/{SUBMISSION_DETAILS_FILENAME}",
-                _format_submission_details(submission),
-            )
+            for submission in submissions:
+                _write_submission_to_archive(archive, submission)
 
-            used_names = set()
-            for stored_file in iter_submission_files(submission):
-                file_name = _safe_path_segment(
-                    Path(stored_file.name).name,
-                    f"file-{len(used_names) + 1}",
-                )
-                while file_name in used_names:
-                    stem = Path(file_name).stem
-                    suffix = Path(file_name).suffix
-                    file_name = f"{stem}-{len(used_names) + 1}{suffix}"
-                used_names.add(file_name)
-
-                stored_file.open("rb")
-                try:
-                    archive.writestr(
-                        f"{submission_root}/{file_name}",
-                        stored_file.read(),
-                    )
-                finally:
-                    stored_file.close()
-
-    buffer.seek(0)
-    return buffer.getvalue()
+        buffer.seek(0)
+        return buffer
+    except Exception:
+        buffer.close()
+        raise
 
 
 def _write_submission_to_archive(archive, submission):
@@ -245,22 +222,24 @@ def _write_submission_to_archive(archive, submission):
 
         stored_file.open("rb")
         try:
-            archive.writestr(
-                f"{submission_root}/{file_name}",
-                stored_file.read(),
-            )
+            with archive.open(
+                f"{submission_root}/{file_name}", "w", force_zip64=True
+            ) as archived_file:
+                copyfileobj(stored_file, archived_file, length=1024 * 1024)
         finally:
             stored_file.close()
 
 
 def _build_submission_download_zip(submission):
-    buffer = BytesIO()
-
-    with ZipFile(buffer, "w", compression=ZIP_DEFLATED) as archive:
-        _write_submission_to_archive(archive, submission)
-
-    buffer.seek(0)
-    return buffer.getvalue(), _submission_archive_name(submission)
+    buffer = TemporaryFile(mode="w+b")
+    try:
+        with ZipFile(buffer, "w", compression=ZIP_STORED, allowZip64=True) as archive:
+            _write_submission_to_archive(archive, submission)
+        buffer.seek(0)
+        return buffer, _submission_archive_name(submission)
+    except Exception:
+        buffer.close()
+        raise
 
 
 @api_view(["GET"])
@@ -291,11 +270,12 @@ def document_download(request, document_id):
 @permission_classes([IsAdminUser])
 @throttle_classes([StaffExportThrottle])
 def complete_download(request):
-    zip_bytes = _build_complete_download_zip()
-    response = HttpResponse(zip_bytes, content_type="application/zip")
-    response["Content-Disposition"] = f'attachment; filename="{EXPORT_FILENAME}"'
-    response["Content-Length"] = str(len(zip_bytes))
-    return response
+    return FileResponse(
+        _build_complete_download_zip(),
+        as_attachment=True,
+        filename=EXPORT_FILENAME,
+        content_type="application/zip",
+    )
 
 
 @api_view(["GET"])
@@ -306,11 +286,13 @@ def submission_download(request, submission_id):
         submission_repository.list_with_documents(),
         pk=submission_id,
     )
-    zip_bytes, export_filename = _build_submission_download_zip(submission)
-    response = HttpResponse(zip_bytes, content_type="application/zip")
-    response["Content-Disposition"] = f'attachment; filename="{export_filename}"'
-    response["Content-Length"] = str(len(zip_bytes))
-    return response
+    zip_file, export_filename = _build_submission_download_zip(submission)
+    return FileResponse(
+        zip_file,
+        as_attachment=True,
+        filename=export_filename,
+        content_type="application/zip",
+    )
 
 
 @api_view(["GET"])

@@ -48,16 +48,19 @@ def _format_corpus_html(corpus):
     )
 
 
-def _build_plaintext_body(submission, corpus):
+def _build_plaintext_body(submission, corpus, attachment_note=""):
     detail_lines = [
         f"{label}: {value}"
         for label, value in _submission_detail_rows(submission)
     ]
     parts = [corpus.strip(), "", *detail_lines] if corpus else detail_lines
+    if attachment_note:
+        parts.extend(["", attachment_note])
     return "\n".join(parts).strip() + "\n"
 
 
-def _build_html_body(submission, corpus):
+def _build_html_body(submission, corpus, attachment_note=""):
+    attachment_notice = f"<p>{escape(attachment_note)}</p>" if attachment_note else ""
     rows = "".join(
         (
             "<tr>"
@@ -81,6 +84,7 @@ def _build_html_body(submission, corpus):
         "<table style=\"width:100%;border-collapse:collapse;background:#fff;\">"
         f"{rows}"
         "</table>"
+        f"{attachment_notice}"
         "</div>"
         "</div>"
         "</div>"
@@ -96,15 +100,28 @@ def _build_message(submission, recipient):
     if not recipient or not from_email:
         return None
 
+    files = list(iter_submission_files(submission))
+    include_attachments = (
+        sum(stored_file.size for stored_file in files)
+        <= settings.SUBMISSION_EMAIL_ATTACHMENT_MAX_BYTES
+    )
+    attachment_note = (
+        ""
+        if include_attachments
+        else "Files are stored with the submission and are not attached to this email."
+    )
+
     message = EmailMultiAlternatives(
         subject=subject,
-        body=_build_plaintext_body(submission, corpus),
+        body=_build_plaintext_body(submission, corpus, attachment_note),
         from_email=from_email,
         to=[recipient],
     )
-    message.attach_alternative(_build_html_body(submission, corpus), "text/html")
+    message.attach_alternative(
+        _build_html_body(submission, corpus, attachment_note), "text/html"
+    )
 
-    for stored_file in iter_submission_files(submission):
+    for stored_file in files if include_attachments else ():
         stored_file.open("rb")
         try:
             content_type = mimetypes.guess_type(stored_file.name)[0] or "application/octet-stream"
