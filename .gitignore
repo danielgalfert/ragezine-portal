@@ -228,3 +228,6 @@ __marimo__/
 backend/rage-env/
 backend/media/
 backend/staticfiles/
+
+# Local production credential inventory. Never commit this file.
+docs/deployment-secrets.local.md
