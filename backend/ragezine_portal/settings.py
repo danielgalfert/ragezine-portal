@@ -112,16 +112,9 @@ DEFAULT_FROM_EMAIL = os.getenv("SUBMISSION_EMAIL_FROM", "no-reply@example.com")
 SUBMISSION_EMAIL_FROM = os.getenv("SUBMISSION_EMAIL_FROM", DEFAULT_FROM_EMAIL)
 SUBMISSION_EMAIL_SUBJECT = os.getenv(
     "SUBMISSION_EMAIL_SUBJECT",
-    "Submission received",
+    "Thank you for submitting to Rage Zine",
 )
 SUBMISSION_EMAIL_BODY = os.getenv("SUBMISSION_EMAIL_BODY", "")
-SUBMISSION_NOTIFICATION_TO = [
-    recipient.strip()
-    for recipient in os.getenv("SUBMISSION_NOTIFICATION_TO", "").split(",")
-    if recipient.strip()
-]
-
-
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
