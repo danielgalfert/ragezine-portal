@@ -128,6 +128,7 @@ class SubmissionValidationTests(TestCase):
         download_response = self.client.get(f"/api/downloads/documents/{text_document.pk}/")
         self.assertEqual(download_response.status_code, status.HTTP_200_OK)
         self.assertEqual(b"".join(download_response.streaming_content), b"test file content")
+        self.assertTrue(download_response.closed)
         self.assertEqual(self.client.get(f"/media/{text_document.file.name}").status_code, 404)
 
     def test_video_is_stored_as_visual_document(self):
@@ -154,6 +155,7 @@ class SubmissionValidationTests(TestCase):
         download = self.client.get(f"/api/downloads/documents/{video.pk}/")
         self.assertEqual(download.status_code, status.HTTP_200_OK)
         self.assertEqual(b"".join(download.streaming_content), b"video bytes")
+        self.assertTrue(download.closed)
 
 
 class SubmissionSizeLimitTests(TestCase):
@@ -436,6 +438,7 @@ class SubmissionDownloadsTests(TestCase):
             self.assertIn("- legacy.txt", details)
             self.assertIn("- poem.pdf", details)
             self.assertIn("- image.tiff", details)
+        self.assertTrue(response.closed)
 
     def test_complete_download_separates_submissions_with_same_artist_name(self):
         submissions = []
