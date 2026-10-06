@@ -10,9 +10,10 @@ from rest_framework.test import APIClient
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
+from types import SimpleNamespace
 from unittest.mock import patch
 
-from submissions.api.email import send_submission_emails
+from submissions.api.email import send_submission_receipt
 from submissions.models import Submission, SubmissionDocument
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
@@ -136,7 +137,7 @@ class SubmissionValidationTests(TestCase):
             "clip.mp4", b"video bytes", content_type="video/mp4"
         )
 
-        with patch("submissions.api.submission_views.send_submission_emails"):
+        with patch("submissions.api.submission_views.send_submission_receipt"):
             response = self.client.post(
                 "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.53"
             )
@@ -216,7 +217,7 @@ class SubmissionSizeLimitTests(TestCase):
         payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * (1024 * 1024))
         payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * (1024 * 1024))
 
-        with patch("submissions.api.submission_views.send_submission_emails"):
+        with patch("submissions.api.submission_views.send_submission_receipt"):
             response = self.client.post(
                 "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.52"
             )
@@ -404,11 +405,10 @@ class SubmissionEmailTests(TestCase):
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         SUBMISSION_EMAIL_FROM="editor@ragezine.test",
-        SUBMISSION_EMAIL_SUBJECT="Submission received",
+        SUBMISSION_EMAIL_SUBJECT="Thank you for submitting to Rage Zine",
         SUBMISSION_EMAIL_BODY="Thank you for submitting to Rage Zine.\n\nWe will review your work shortly.",
-        SUBMISSION_NOTIFICATION_TO=["internal@ragezine.test"],
     )
-    def test_send_submission_emails_sends_applicant_and_internal_messages_with_attachments(self):
+    def test_send_submission_receipt_only_to_artist_without_attachments(self):
         submission = Submission.objects.create(
             title="Mail Piece",
             year="2026",
@@ -440,23 +440,50 @@ class SubmissionEmailTests(TestCase):
             document_type=SubmissionDocument.DocumentType.VISUAL,
         )
 
-        sent = send_submission_emails(submission)
+        sent = send_submission_receipt(submission)
 
-        self.assertEqual(sent, 2)
-        self.assertEqual(len(mail.outbox), 2)
+        self.assertEqual(sent, 1)
+        self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].from_email, settings.SUBMISSION_EMAIL_FROM)
         self.assertEqual(mail.outbox[0].subject, settings.SUBMISSION_EMAIL_SUBJECT)
         self.assertIn("Thank you for submitting to Rage Zine.", mail.outbox[0].body)
-        self.assertIn("Title: Mail Piece", mail.outbox[0].body)
-        self.assertEqual(len(mail.outbox[0].attachments), 3)
+        self.assertIn("Hi Artist Mail,", mail.outbox[0].body)
+        self.assertIn('We received "Mail Piece"', mail.outbox[0].body)
+        self.assertIn("Submissions are being reviewed", mail.outbox[0].body)
+        self.assertIn("contact you at this email address to let you know the outcome", mail.outbox[0].body)
+        self.assertIn(f"Submission reference: #{submission.pk}", mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ["artist.mail@example.com"])
-        self.assertEqual(mail.outbox[1].to, ["internal@ragezine.test"])
-        self.assertEqual(mail.outbox[0].alternatives[0][1], "text/html")
-        self.assertIn("Submission Received", mail.outbox[0].alternatives[0][0])
-        self.assertIn("Artist Mail", mail.outbox[0].alternatives[0][0])
+        self.assertNotIn("Detailed description", mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].attachments, [])
+        self.assertNotIn("mail-piece.pdf", mail.outbox[0].body)
+        self.assertNotIn("/downloads/", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html, content_type = mail.outbox[0].alternatives[0]
+        self.assertEqual(content_type, "text/html")
+        self.assertIn("Thank you for sharing your work.", html)
+        self.assertIn("Submissions are being reviewed", html)
+        self.assertIn("contact you at this email address to let you know the outcome", html)
+        self.assertIn("Artist Mail", html)
+        self.assertNotIn("mail-piece.pdf", html)
+        self.assertNotIn("/downloads/", html)
 
-        with override_settings(SUBMISSION_EMAIL_ATTACHMENT_MAX_BYTES=1):
-            send_submission_emails(submission)
-        self.assertEqual(len(mail.outbox[2].attachments), 0)
-        self.assertEqual(len(mail.outbox[3].attachments), 0)
-        self.assertIn("not attached to this email", mail.outbox[2].body)
+    @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        SUBMISSION_EMAIL_FROM="editor@ragezine.test",
+        SUBMISSION_EMAIL_BODY="Thanks <script>alert(1)</script>",
+    )
+    def test_receipt_html_escapes_submitted_text(self):
+        submission = SimpleNamespace(
+            pk=7,
+            artist_name="<b>Artist</b>",
+            title="<script>Piece</script>",
+            email="artist@example.com",
+        )
+
+        send_submission_receipt(submission)
+
+        html = mail.outbox[0].alternatives[0][0]
+        self.assertNotIn("<script>", html)
+        self.assertNotIn("<b>Artist</b>", html)
+        self.assertIn("&lt;script&gt;Piece&lt;/script&gt;", html)
+        self.assertIn("&lt;b&gt;Artist&lt;/b&gt;", html)

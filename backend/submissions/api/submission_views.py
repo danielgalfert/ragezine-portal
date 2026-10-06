@@ -4,7 +4,7 @@ from django.db import transaction
 from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
-from submissions.api.email import send_submission_emails
+from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 from submissions.serializers import SubmissionSerializer
@@ -53,10 +53,10 @@ class SubmissionViewSet(viewsets.ModelViewSet):
                 )
 
         try:
-            send_submission_emails(submission)
+            send_submission_receipt(submission)
         except Exception:
             logger.exception(
-                "Failed to send submission emails for submission %s",
+                "Failed to send submission receipt for submission %s",
                 submission.pk,
             )
 

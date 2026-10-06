@@ -20,7 +20,7 @@ Uploaded files are **not** served from `/media/`. Django checks staff access bef
 
 ## Local Compose run
 
-Copy `.env.example` to `.env`, then set a unique `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD`. The example enables Django debug mode for local use. Start the stack with `docker compose up --build`; the site is at `http://localhost:8080` unless `RAGEZINE_HTTP_PORT` is changed. `docker compose down` stops it without removing volumes.
+Copy `.env.example` to `.env`, then set a unique `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD`. The example uses production settings; set `DJANGO_DEBUG=1` for local development. Start the stack with `docker compose up --build`; the site is at `http://localhost:8080` unless `RAGEZINE_HTTP_PORT` is changed. `docker compose down` stops it without removing volumes.
 
 The backend can also run locally with SQLite by setting `DJANGO_DB_ENGINE=sqlite`; Compose explicitly selects PostgreSQL. For frontend development, run `npm run dev` in `frontend/ragezine-portal` and the Django development server in `backend`.
 
@@ -43,10 +43,17 @@ addition to the final file storage. Provision enough space for simultaneous
 uploads and generated ZIP downloads. Large archives are built on temporary
 disk and sent as streamed downloads rather than held in memory.
 
-Submission emails list all uploaded filenames. They attach files only when
-their combined size is at most `RAGEZINE_EMAIL_ATTACHMENT_MAX_MB=10`, so
-video submissions do not become enormous emails. This value also belongs in
-the deployment `.env`.
+Submission receipts do not attach uploaded files, including videos.
+
+## Staff accounts
+
+With the Compose stack running, create a dashboard account from the project root:
+
+```sh
+docker compose exec backend python manage.py create_staff_user editor --email editor@example.com
+```
+
+The command prompts twice for a password. It creates a staff account without superuser privileges. Omit `--email` if it is not needed. For full Django admin privileges, use `docker compose exec backend python manage.py createsuperuser` instead. The same `create_staff_user` command also works directly from `backend` when running Django locally.
 
 ## Code map
 
