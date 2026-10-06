@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import CountrySelect from "../components/CountrySelect";
@@ -48,6 +48,8 @@ function countWords(s) {
 }
 
 export default function SubmissionPage() {
+  const textFileInputRef = useRef(null);
+  const visualFileInputRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [socialInput, setSocialInput] = useState("");
   const [textFiles, setTextFiles] = useState([]);
@@ -59,6 +61,7 @@ export default function SubmissionPage() {
     messages: [],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
 
   const bioWords = useMemo(() => countWords(form.short_bio), [form.short_bio]);
 
@@ -98,6 +101,8 @@ export default function SubmissionPage() {
     setSocialInput("");
     setTextFiles([]);
     setVisualFiles([]);
+    if (textFileInputRef.current) textFileInputRef.current.value = "";
+    if (visualFileInputRef.current) visualFileInputRef.current.value = "";
   }
 
   function openPopup(kind, title, messages) {
@@ -225,7 +230,7 @@ export default function SubmissionPage() {
     if (!isLikelyEmail(form.email)) return "Please provide a valid email address.";
     if (!form.country_origin.trim()) return "Please provide countries of origin.";
     if (!form.countries_residence.length) return "Please provide countries of residence.";
-    if (visualFiles.length > MAX_VISUALS) return `Too many visuals. Max ${MAX_VISUALS}.`;
+    if (visualFiles.length > MAX_VISUALS) return `Too many visual or video files. Max ${MAX_VISUALS}.`;
 
     return "";
   }
@@ -240,10 +245,15 @@ export default function SubmissionPage() {
     }
 
     setSubmitting(true);
+    setUploadProgress(null);
 
     try {
       const payload = buildSubmissionFormData();
-      await createSubmission(payload);
+      await createSubmission(payload, (event) => {
+        if (event.total) {
+          setUploadProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        }
+      });
       openPopup("success", "Submission successful", "Your submission has been received.");
       clearAll();
     } catch (err) {
@@ -254,6 +264,7 @@ export default function SubmissionPage() {
       openPopup("error", "Submission error", messages);
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
     }
   }
 
@@ -304,7 +315,7 @@ export default function SubmissionPage() {
                 <p>
                   <span className="sub">Format:</span><br />
                   Text: Word or Google Docs export (max. {MAX_WORDS_TEXT} words)<br />
-                  Visuals: TIFF and 300 dpi (max. {MAX_VISUALS} files)
+                  Visuals: TIFF and 300 dpi; video: MP4, MOV, or WebM (max. {MAX_VISUALS} files)
                 </p>
               </div>
 
@@ -442,7 +453,7 @@ export default function SubmissionPage() {
               <hr className="hr" />
 
               <FormField label="Text upload (Word / Google Docs export)">
-                <input className="portal-file" type="file" accept=".doc,.docx,.pdf" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
+                <input ref={textFileInputRef} className="portal-file" type="file" accept=".doc,.docx,.pdf" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
                 <div className="portal-help">
                   Max {MAX_WORDS_TEXT} words.
                 </div>
@@ -461,8 +472,8 @@ export default function SubmissionPage() {
                 )}
               </FormField>
 
-              <FormField label={`Visuals upload (TIFF, 300 dpi) - up to ${MAX_VISUALS} files`}>
-                <input className="portal-file" type="file" accept=".tif,.tiff,image/tiff" multiple onChange={(e) => onPickVisuals(e.target.files)} />
+              <FormField label={`Visuals or video upload - up to ${MAX_VISUALS} files`}>
+                <input ref={visualFileInputRef} className="portal-file" type="file" accept=".tif,.tiff,.mp4,.mov,.webm,image/tiff,video/mp4,video/quicktime,video/webm" multiple onChange={(e) => onPickVisuals(e.target.files)} />
 
                 {visualFiles.length > 0 && (
                   <ul className="portal-filelist">
@@ -484,7 +495,13 @@ export default function SubmissionPage() {
 
               <div className="portal-actions">
                 <button className="portal-btn" type="submit" disabled={submitting}>
-                  {submitting ? "submitting..." : "submit"}
+                  {submitting
+                    ? uploadProgress === 100
+                      ? "processing submission..."
+                      : uploadProgress === null
+                        ? "submitting..."
+                        : `uploading ${uploadProgress}%...`
+                    : "submit"}
                 </button>
 
                 <button className="portal-btn portal-btn-secondary" type="button" onClick={clearAll} disabled={submitting}>

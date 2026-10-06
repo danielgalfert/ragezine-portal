@@ -5,6 +5,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
+from submissions.api.throttles import SubmissionCreateThrottle
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 from submissions.serializers import SubmissionSerializer
 
@@ -22,6 +23,11 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return [permissions.AllowAny()]
         return super().get_permissions()
+
+    def get_throttles(self):
+        if self.action == "create":
+            return [SubmissionCreateThrottle()]
+        return super().get_throttles()
 
     def get_queryset(self):
         return self.submission_repository.list()
