@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { getSubmissions } from "../services/submissionService";
-import {
-  downloadSubmissionArchive,
-  triggerBlobDownload,
-} from "../services/downloadService";
+import { downloadSubmissionArchive } from "../services/downloadService";
 
 const PAGE_SIZE = 20;
 
@@ -52,7 +49,6 @@ export default function DashboardSubmissionsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
-  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -110,16 +106,8 @@ export default function DashboardSubmissionsList() {
     }
   }, [page, totalPages]);
 
-  async function handleSubmissionDownload(submissionId) {
-    setDownloadingId(submissionId);
-    try {
-      const { blob, filename } = await downloadSubmissionArchive(submissionId);
-      triggerBlobDownload(blob, filename);
-    } catch (err) {
-      setError(err?.response?.data?.detail || err?.message || "Failed to download submission.");
-    } finally {
-      setDownloadingId(null);
-    }
+  function handleSubmissionDownload(submissionId) {
+    downloadSubmissionArchive(submissionId);
   }
 
   return (
@@ -227,7 +215,6 @@ export default function DashboardSubmissionsList() {
                       type="button"
                       className="smallBtn dashboard-download-button"
                       onClick={() => handleSubmissionDownload(submission.id)}
-                      disabled={downloadingId === submission.id}
                       aria-label={`Download submission ${submission.id}`}
                       title={`Download submission ${submission.id}`}
                     >

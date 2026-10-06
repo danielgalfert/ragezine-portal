@@ -24,7 +24,6 @@ export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [hasStaffAccess, setHasStaffAccess] = useState(false);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
-  const [downloadingComplete, setDownloadingComplete] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,15 +54,8 @@ export default function DashboardPage() {
     }
   }
 
-  async function onDownloadComplete() {
-    setDownloadingComplete(true);
-
-    try {
-      const { blob, filename } = await downloadCompleteArchive();
-      triggerBrowserDownload(blob, filename);
-    } finally {
-      setDownloadingComplete(false);
-    }
+  function onDownloadComplete() {
+    downloadCompleteArchive();
   }
 
   async function onDownloadExcel() {
@@ -123,9 +115,8 @@ export default function DashboardPage() {
               type="button"
               className="menu-button"
               onClick={onDownloadComplete}
-              disabled={downloadingComplete}
             >
-              {downloadingComplete ? "downloading..." : "complete ↓"}
+              complete ↓
             </button>
           </div>
         </nav>

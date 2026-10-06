@@ -77,6 +77,7 @@ export default function LoginPage() {
     } catch (error) {
       const message =
         error?.response?.data?.message ||
+        error?.response?.data?.detail ||
         error?.message ||
         "Login failed.";
       openPopup("error", "Login error", message);

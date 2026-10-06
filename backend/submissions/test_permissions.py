@@ -35,7 +35,9 @@ class SubmissionPermissionTests(SimpleTestCase):
             action,
             return_value=Response({"ok": True}, status=expected_status),
         ) as handler:
-            response = getattr(client, method)(path, {}, format="json")
+            response = getattr(client, method)(
+                path, {}, format="json", REMOTE_ADDR="192.0.2.200"
+            )
         return response, handler
 
     def test_anonymous_visitors_can_create_submissions(self):
@@ -118,7 +120,7 @@ class DownloadPermissionTests(SimpleTestCase):
         )
         with patch(
             "submissions.api.downloads._build_complete_download_zip",
-            return_value=b"zip",
+            side_effect=lambda: BytesIO(b"zip"),
         ), patch(
             "submissions.api.downloads._build_excel_workbook",
             return_value=(b"workbook", "review.xlsx"),
@@ -127,7 +129,7 @@ class DownloadPermissionTests(SimpleTestCase):
             return_value=object(),
         ), patch(
             "submissions.api.downloads._build_submission_download_zip",
-            return_value=(b"zip", "submission.zip"),
+            side_effect=lambda submission: (BytesIO(b"zip"), "submission.zip"),
         ):
             for url in self.urls:
                 with self.subTest(url=url):

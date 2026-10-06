@@ -11,6 +11,7 @@ from io import BytesIO
 from tempfile import TemporaryDirectory
 from zipfile import ZipFile
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from submissions.api.email import send_submission_receipt
 from submissions.models import Submission, SubmissionDocument
@@ -129,6 +130,101 @@ class SubmissionValidationTests(TestCase):
         download_response.close()
         self.assertEqual(self.client.get(f"/media/{text_document.file.name}").status_code, 404)
 
+    def test_video_is_stored_as_visual_document(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["visuals"] = SimpleUploadedFile(
+            "clip.mp4", b"video bytes", content_type="video/mp4"
+        )
+
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.53"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        video = SubmissionDocument.objects.get(original_filename="clip.mp4")
+        self.assertEqual(video.document_type, SubmissionDocument.DocumentType.VISUAL)
+        self.assertEqual(video.size, len(b"video bytes"))
+
+        staff_user = get_user_model().objects.create_user(
+            username="video-editor", password="S3cretPass123", is_staff=True
+        )
+        self.client.force_authenticate(staff_user)
+        download = self.client.get(f"/api/downloads/documents/{video.pk}/")
+        self.assertEqual(download.status_code, status.HTTP_200_OK)
+        self.assertEqual(b"".join(download.streaming_content), b"video bytes")
+        download.close()
+
+
+class SubmissionSizeLimitTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def base_payload(self):
+        return {
+            "title": "A Valid Title",
+            "submission_type": "poetry",
+            "artist_name": "Artist Name",
+            "pronouns": "they/them",
+            "short_bio": "A short but valid bio for the submission.",
+            "country_origin": "DK",
+            "countries_residence": ["DK"],
+            "language": "English",
+            "allow_translation": True,
+            "email": "artist@example.com",
+        }
+
+    @override_settings(
+        SUBMISSION_MAX_FILE_BYTES=1024 * 1024,
+        SUBMISSION_MAX_TOTAL_FILES_BYTES=2 * 1024 * 1024,
+    )
+    def test_rejects_file_over_individual_limit_without_saving_submission(self):
+        payload = self.base_payload()
+        payload["text_files"] = SimpleUploadedFile("large.pdf", b"x" * (1024 * 1024 + 1))
+
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.50"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("text_files", response.data)
+        self.assertFalse(Submission.objects.exists())
+
+    @override_settings(
+        SUBMISSION_MAX_FILE_BYTES=1024 * 1024,
+        SUBMISSION_MAX_TOTAL_FILES_BYTES=1024 * 1024,
+    )
+    def test_rejects_files_over_combined_limit_without_saving_submission(self):
+        payload = self.base_payload()
+        payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * 600_000)
+        payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * 600_000)
+
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.51"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("non_field_errors", response.data)
+        self.assertFalse(Submission.objects.exists())
+
+    @override_settings(
+        SUBMISSION_MAX_FILE_BYTES=1024 * 1024,
+        SUBMISSION_MAX_TOTAL_FILES_BYTES=2 * 1024 * 1024,
+    )
+    def test_accepts_files_at_both_limits(self):
+        payload = self.base_payload()
+        payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * (1024 * 1024))
+        payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * (1024 * 1024))
+
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.52"
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(SubmissionDocument.objects.count(), 2)
+
 
 class SubmissionRepositoryTests(TestCase):
     def test_repositories_create_submission_and_documents(self):
@@ -229,7 +325,7 @@ class SubmissionDownloadsTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response["Content-Type"], "application/zip")
 
-        with ZipFile(BytesIO(response.content)) as archive:
+        with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
             names = archive.namelist()
             self.assertIn("poetry/", names)
             self.assertIn("poetry/Artist_One/submission_details.txt", names)
@@ -243,6 +339,7 @@ class SubmissionDownloadsTests(TestCase):
             self.assertIn("- legacy.txt", details)
             self.assertIn("- poem.pdf", details)
             self.assertIn("- image.tiff", details)
+        response.close()
 
     def test_excel_download_contains_review_sheet_and_submission_row(self):
         Submission.objects.create(
