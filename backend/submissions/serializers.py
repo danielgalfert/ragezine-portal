@@ -1,7 +1,10 @@
-from rest_framework import serializers
-from django.urls import reverse
-from .models import Submission, SubmissionDocument
 import pycountry
+
+from django.conf import settings
+from django.urls import reverse
+from rest_framework import serializers
+
+from .models import Submission, SubmissionDocument
 from submissions.utils import sanitize_multiline, sanitize_single_line
 
 PRONOUN_VALUES = {
@@ -205,6 +208,22 @@ class SubmissionSerializer(serializers.ModelSerializer):
         if request:
             text_files = request.FILES.getlist("text_files")
             visuals = request.FILES.getlist("visuals")
+
+        file_limit = settings.SUBMISSION_MAX_FILE_BYTES
+        total_limit = settings.SUBMISSION_MAX_TOTAL_FILES_BYTES
+        for field, files in (("text_files", text_files), ("visuals", visuals)):
+            for uploaded_file in files:
+                if uploaded_file.size > file_limit:
+                    raise serializers.ValidationError({
+                        field: (
+                            f"Each file must be at most {file_limit // (1024 * 1024)} MiB."
+                        )
+                    })
+
+        if sum(uploaded_file.size for uploaded_file in text_files + visuals) > total_limit:
+            raise serializers.ValidationError(
+                f"Files must total at most {total_limit // (1024 * 1024)} MiB."
+            )
 
         # Rule: there must be a text file or at least one visual
         if not text_files and not visuals:
