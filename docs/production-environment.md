@@ -12,13 +12,15 @@ credentials in `.env.example`.
 | `DJANGO_DEBUG` | Set to `0` in production. |
 | `DJANGO_SECRET_KEY` | Unique, long random Django signing key. Keep it secret. |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated public hostnames accepted by Django. |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated HTTPS origins for trusted form submissions. |
+| `RAGEZINE_PUBLIC_HOST` | Public portal hostname for Caddy automatic TLS; omit the scheme. |
 | `DJANGO_DB_ENGINE` | `postgres` for the Compose deployment. |
 | `POSTGRES_DB` | PostgreSQL database name. |
 | `POSTGRES_USER` | PostgreSQL application user. |
 | `POSTGRES_PASSWORD` | Strong password for that user; never reuse the superuser password. |
 | `POSTGRES_HOST` | `db` inside Compose. |
 | `POSTGRES_PORT` | PostgreSQL port, usually `5432`. |
-| `RAGEZINE_HTTP_PORT` | Host port for nginx's HTTP listener. Configure HTTPS at the public edge. |
+| `RAGEZINE_HTTP_PORT` | Loopback host port for nginx's HTTP listener; Caddy provides public HTTPS. |
 | `RAGEZINE_STORAGE_BACKEND` | `local` for the persistent Compose media volume or `s3` for private object storage. |
 | `AWS_STORAGE_BUCKET_NAME`, `AWS_S3_ENDPOINT_URL`, `AWS_S3_REGION_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_QUERYSTRING_AUTH` | Needed only when `RAGEZINE_STORAGE_BACKEND=s3`. Use a private bucket and least-privilege credentials. |
 | `DJANGO_EMAIL_BACKEND` | SMTP backend for real receipt emails. |

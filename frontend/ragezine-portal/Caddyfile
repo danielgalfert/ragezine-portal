@@ -1,0 +1,3 @@
+{$RAGEZINE_PUBLIC_HOST} {
+	reverse_proxy nginx:80
+}
