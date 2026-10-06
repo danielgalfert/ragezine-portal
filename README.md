@@ -24,6 +24,16 @@ Copy `.env.example` to `.env`, then set a unique `DJANGO_SECRET_KEY` and `POSTGR
 
 The backend can also run locally with SQLite by setting `DJANGO_DB_ENGINE=sqlite`; Compose explicitly selects PostgreSQL. For frontend development, run `npm run dev` in `frontend/ragezine-portal` and the Django development server in `backend`.
 
+## Staff accounts
+
+With the Compose stack running, create a dashboard account from the project root:
+
+```sh
+docker compose exec backend python manage.py create_staff_user editor --email editor@example.com
+```
+
+The command prompts twice for a password. It creates a staff account without superuser privileges. Omit `--email` if it is not needed. For full Django admin privileges, use `docker compose exec backend python manage.py createsuperuser` instead. The same `create_staff_user` command also works directly from `backend` when running Django locally.
+
 ## Code map
 
 - `frontend/ragezine-portal/src/App.jsx`: browser routes for the form, login, and dashboard.
