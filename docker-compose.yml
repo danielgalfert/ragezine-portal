@@ -1,6 +1,23 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      RAGEZINE_PUBLIC_HOST: ${RAGEZINE_PUBLIC_HOST:?Set the public portal hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./frontend/ragezine-portal/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -33,6 +50,7 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     environment:
       DJANGO_DB_ENGINE: postgres
@@ -63,6 +81,7 @@ services:
 
   nginx:
     build: ./frontend/ragezine-portal
+    restart: unless-stopped
     environment:
       RAGEZINE_NGINX_LOGIN_RATE: ${RAGEZINE_NGINX_LOGIN_RATE:-15r/m}
       RAGEZINE_NGINX_LOGIN_BURST: ${RAGEZINE_NGINX_LOGIN_BURST:-8}
@@ -80,6 +99,8 @@ services:
       - static_data:/usr/share/nginx/html/static:ro
 
 volumes:
+  caddy_data:
+  caddy_config:
   postgres_data:
   media_data:
   static_data:
