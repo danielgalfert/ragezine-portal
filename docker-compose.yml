@@ -13,14 +13,35 @@ services:
       timeout: 3s
       retries: 20
 
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   backend:
     build: ./backend
     env_file: .env
     environment:
       DJANGO_DB_ENGINE: postgres
       POSTGRES_HOST: db
+      RAGEZINE_REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - media_data:/app/media
@@ -29,7 +50,7 @@ services:
       sh -c "
       python manage.py migrate --noinput &&
       python manage.py collectstatic --noinput &&
-      exec gunicorn ragezine_portal.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 120
+      exec gunicorn ragezine_portal.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout ${RAGEZINE_GUNICORN_TIMEOUT:-14400}
       "
     expose:
       - "8000"
@@ -42,6 +63,14 @@ services:
 
   nginx:
     build: ./frontend/ragezine-portal
+    environment:
+      RAGEZINE_NGINX_LOGIN_RATE: ${RAGEZINE_NGINX_LOGIN_RATE:-15r/m}
+      RAGEZINE_NGINX_LOGIN_BURST: ${RAGEZINE_NGINX_LOGIN_BURST:-8}
+      RAGEZINE_NGINX_SUBMISSION_RATE: ${RAGEZINE_NGINX_SUBMISSION_RATE:-5r/m}
+      RAGEZINE_NGINX_SUBMISSION_BURST: ${RAGEZINE_NGINX_SUBMISSION_BURST:-5}
+      RAGEZINE_NGINX_MAX_BODY_SIZE: ${RAGEZINE_NGINX_MAX_BODY_SIZE:-11g}
+      RAGEZINE_NGINX_PROXY_READ_TIMEOUT: ${RAGEZINE_NGINX_PROXY_READ_TIMEOUT:-14400s}
+      NGINX_ENVSUBST_FILTER: ^RAGEZINE_NGINX_
     depends_on:
       backend:
         condition: service_healthy

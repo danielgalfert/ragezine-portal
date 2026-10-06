@@ -4,6 +4,7 @@ Django settings for ragezine_portal project.
 
 from pathlib import Path
 import os
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 from .database import get_database_handler
 
@@ -75,6 +76,43 @@ WSGI_APPLICATION = "ragezine_portal.wsgi.application"
 
 DATABASE_HANDLER = get_database_handler(os.getenv("DJANGO_DB_ENGINE", "sqlite"))
 DATABASES = {"default": DATABASE_HANDLER.configuration(BASE_DIR, os.environ)}
+
+# Gunicorn runs multiple workers, so production throttles must share a cache.
+REDIS_URL = os.getenv("RAGEZINE_REDIS_URL", "").strip()
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
+    }
+elif DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "ragezine-development",
+        }
+    }
+else:
+    raise ImproperlyConfigured("RAGEZINE_REDIS_URL is required when DJANGO_DEBUG=0.")
+
+REST_FRAMEWORK = {
+    # nginx is the sole proxy directly in front of Django in docker-compose.
+    "NUM_PROXIES": int(os.getenv("RAGEZINE_PROXY_COUNT", "1")),
+    "DEFAULT_THROTTLE_RATES": {
+        "submission_create": os.getenv("RAGEZINE_SUBMISSION_RATE", "5/hour"),
+        "login_ip": os.getenv("RAGEZINE_LOGIN_IP_RATE", "15/minute"),
+        "login_username": os.getenv("RAGEZINE_LOGIN_USERNAME_RATE", "8/minute"),
+        "staff_export": os.getenv("RAGEZINE_EXPORT_RATE", "20/hour"),
+    },
+}
+
+SUBMISSION_MAX_FILE_BYTES = int(os.getenv("RAGEZINE_MAX_FILE_MB", "5120")) * 1024 * 1024
+SUBMISSION_MAX_TOTAL_FILES_BYTES = int(os.getenv("RAGEZINE_MAX_TOTAL_FILES_MB", "10240")) * 1024 * 1024
+if SUBMISSION_MAX_FILE_BYTES <= 0 or SUBMISSION_MAX_TOTAL_FILES_BYTES < SUBMISSION_MAX_FILE_BYTES:
+    raise ImproperlyConfigured(
+        "RAGEZINE_MAX_FILE_MB must be positive and no larger than RAGEZINE_MAX_TOTAL_FILES_MB."
+    )
 
 AUTH_PASSWORD_VALIDATORS = [
     {
