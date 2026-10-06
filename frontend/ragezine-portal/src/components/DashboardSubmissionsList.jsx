@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { getSubmissions } from "../services/submissionService";
+import { deleteSubmission, getSubmissions } from "../services/submissionService";
 import { downloadSubmissionArchive } from "../services/downloadService";
 
 const PAGE_SIZE = 20;
@@ -48,6 +48,8 @@ export default function DashboardSubmissionsList() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -110,6 +112,23 @@ export default function DashboardSubmissionsList() {
     downloadSubmissionArchive(submissionId);
   }
 
+  async function handleSubmissionDelete(submission) {
+    if (!window.confirm(`Delete submission #${submission.id} by ${submission.artist_name}? This also removes its uploaded files.`)) {
+      return;
+    }
+
+    setDeleteError("");
+    setDeletingId(submission.id);
+    try {
+      await deleteSubmission(submission.id);
+      setSubmissions((current) => current.filter((item) => item.id !== submission.id));
+    } catch (err) {
+      setDeleteError(err?.response?.data?.detail || err?.message || "Failed to delete submission.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <section className="dashboard-section" id="submissions-list">
       <div className="dashboard-shell">
@@ -137,6 +156,12 @@ export default function DashboardSubmissionsList() {
         {!loading && error && (
           <div className="dashboard-panel dashboard-panel-error">
             <p>{error}</p>
+          </div>
+        )}
+
+        {deleteError && (
+          <div className="dashboard-panel dashboard-panel-error" role="alert">
+            <p>{deleteError}</p>
           </div>
         )}
 
@@ -219,6 +244,16 @@ export default function DashboardSubmissionsList() {
                       title={`Download submission ${submission.id}`}
                     >
                       <DownloadIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="smallBtn dashboard-delete-button"
+                      onClick={() => handleSubmissionDelete(submission)}
+                      disabled={deletingId === submission.id}
+                      aria-label={`Delete submission ${submission.id}`}
+                      title={`Delete submission ${submission.id}`}
+                    >
+                      {deletingId === submission.id ? "deleting..." : "delete"}
                     </button>
                   </div>
                 </article>
