@@ -223,4 +223,11 @@ __marimo__/
 # Local environment files
 .env
 */.env
-.env
+
+# Project-local runtime files
+backend/rage-env/
+backend/media/
+backend/staticfiles/
+
+# Local production credential inventory. Never commit this file.
+docs/deployment-secrets.local.md
