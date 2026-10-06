@@ -17,3 +17,7 @@ export async function getSubmissionById(id) {
   const response = await client.get(`/submissions/${id}/`);
   return response.data;
 }
+
+export async function deleteSubmission(id) {
+  await client.delete(`/submissions/${id}/`);
+}

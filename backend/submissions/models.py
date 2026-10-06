@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from uuid import uuid4
 
 
 VOLUME_NUMBER = 3
@@ -12,7 +13,7 @@ def submission_document_upload_path(instance, filename):
         if document_type == SubmissionDocument.DocumentType.VISUAL
         else "texts"
     )
-    return f"submissions/{folder}/{filename}"
+    return f"submissions/{folder}/{instance.submission_id}/{uuid4().hex}-{filename}"
 
 
 class Submission(models.Model):
