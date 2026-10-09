@@ -13,11 +13,15 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") in {"1", "true", "True"}
+if not DEBUG and (len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5):
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be a strong production secret.")
 
 # Caddy is the public TLS endpoint. Its forwarded scheme passes through nginx.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") if not DEBUG else None
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -28,13 +32,13 @@ ALLOWED_HOSTS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-]
+] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-]
+] if DEBUG else []
 CSRF_TRUSTED_ORIGINS.extend(
     origin.strip()
     for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
@@ -119,6 +123,13 @@ REST_FRAMEWORK = {
 
 SUBMISSION_MAX_FILE_BYTES = int(os.getenv("RAGEZINE_MAX_FILE_MB", "5120")) * 1024 * 1024
 SUBMISSION_MAX_TOTAL_FILES_BYTES = int(os.getenv("RAGEZINE_MAX_TOTAL_FILES_MB", "10240")) * 1024 * 1024
+SUBMISSION_MAX_TEXT_FILES = 10
+SUBMISSION_MAX_VISUAL_FILES = 5
+DATA_UPLOAD_MAX_NUMBER_FILES = SUBMISSION_MAX_TEXT_FILES + SUBMISSION_MAX_VISUAL_FILES
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 100
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 if SUBMISSION_MAX_FILE_BYTES <= 0 or SUBMISSION_MAX_TOTAL_FILES_BYTES < SUBMISSION_MAX_FILE_BYTES:
     raise ImproperlyConfigured(
         "RAGEZINE_MAX_FILE_MB must be positive and no larger than RAGEZINE_MAX_TOTAL_FILES_MB."
