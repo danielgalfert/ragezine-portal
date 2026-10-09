@@ -205,9 +205,6 @@ class SubmissionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         request = self.context.get("request")
 
-        language = attrs.get("language", "English")
-        allow_translation = attrs.get("allow_translation", False)
-
         text_files = []
         visuals = []
         if request:
@@ -246,16 +243,6 @@ class SubmissionSerializer(serializers.ModelSerializer):
         if self.instance is None and not text_files and not visuals:
             raise serializers.ValidationError(
                 "A submission must include a text file or at least one visual."
-            )
-
-        # Rule: if language is other than English, allow_translation must be true
-        if language != "English" and not allow_translation:
-            raise serializers.ValidationError(
-                {
-                    "allow_translation": (
-                        "When the language is not English a translation must be allowed."
-                    )
-                }
             )
 
         return attrs
