@@ -448,7 +448,7 @@ export default function SubmissionPage() {
               <hr className="hr" />
 
               <FormField label="Text upload (Word / Google Docs export)">
-                <input ref={textFileInputRef} className="portal-file" type="file" accept=".doc,.docx,.pdf" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
+                <input ref={textFileInputRef} className="portal-file" type="file" accept=".doc,.docx,.pdf,.txt,.rtf,.odt,.md,.pages" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
                 <div className="portal-help">
                   Max {MAX_WORDS_TEXT} words.
                 </div>
@@ -468,7 +468,7 @@ export default function SubmissionPage() {
               </FormField>
 
               <FormField label={`Visuals or video upload - up to ${MAX_VISUALS} files`}>
-                <input ref={visualFileInputRef} className="portal-file" type="file" accept=".tif,.tiff,.mp4,.mov,.webm,image/tiff,video/mp4,video/quicktime,video/webm" multiple onChange={(e) => onPickVisuals(e.target.files)} />
+                <input ref={visualFileInputRef} className="portal-file" type="file" accept="image/*,video/*,.heic,.heif" multiple onChange={(e) => onPickVisuals(e.target.files)} />
 
                 {visualFiles.length > 0 && (
                   <ul className="portal-filelist">
