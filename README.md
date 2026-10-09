@@ -55,6 +55,10 @@ docker compose exec backend python manage.py create_staff_user editor --email ed
 
 The command prompts twice for a password. It creates a staff account without superuser privileges. Omit `--email` if it is not needed. For full Django admin privileges, use `docker compose exec backend python manage.py createsuperuser` instead. The same `create_staff_user` command also works directly from `backend` when running Django locally.
 
+On the Lightsail test deployment, staff sign in at
+`https://admin.submissions.danielgalfert.com/login`. The public submission form
+remains at `https://submissions.danielgalfert.com/`.
+
 ## Code map
 
 - `frontend/ragezine-portal/src/App.jsx`: browser routes for the form, login, and dashboard.
