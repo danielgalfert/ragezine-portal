@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import FormField from "../components/FormField";
 import { getCsrfCookie, getSession, loginUser } from "../services/authService";
 import { sanitizeUsername } from "../utils/sanitize";
+import { publicSiteUrl } from "../publicSiteUrl";
 
 import "../styles/nav.css";
 import "../styles/description.css";
@@ -105,7 +106,7 @@ export default function LoginPage() {
     <div className="portal-page login-page">
       <nav>
         <ul>
-          <li><Link to="/">submissions</Link></li>
+          <li><a href={publicSiteUrl}>submissions</a></li>
         </ul>
       </nav>
 

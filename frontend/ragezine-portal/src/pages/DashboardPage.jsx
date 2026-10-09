@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import DashboardSubmissionsList from "../components/DashboardSubmissionsList";
 import { getSession, logoutUser } from "../services/authService";
 import { downloadCompleteArchive, downloadExcelReview } from "../services/downloadService";
+import { publicSiteUrl } from "../publicSiteUrl";
 import "../styles/dashboard.css";
 import "../styles/nav.css";
 import "../styles/description.css";
@@ -94,7 +95,7 @@ export default function DashboardPage() {
       <div className="portal-page dashboard-page">
         <nav>
           <ul>
-            <li><Link to="/">submissions</Link></li>
+            <li><a href={publicSiteUrl}>submissions</a></li>
             <li>
               <button type="button" className="menu-button" onClick={onLogout}>
                 log out
