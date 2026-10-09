@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from .models import Submission, SubmissionDocument
 from submissions.utils import sanitize_multiline, sanitize_single_line
+from submissions.utils.uploads import validate_upload
 
 PRONOUN_VALUES = {
     "she/her",
@@ -66,12 +67,16 @@ class SubmissionDocumentSerializer(serializers.ModelSerializer):
 
 class SubmissionSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True, allow_blank=False)
+    description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    short_bio = serializers.CharField(max_length=4000)
+    country_origin = serializers.CharField(max_length=2)
 
     countries_residence_names = serializers.SerializerMethodField()
     countries_residence = serializers.ListField(
-        child=serializers.CharField(),
+        child=serializers.CharField(max_length=2),
         required=False,
         allow_empty=True,
+        max_length=20,
     )
     documents = SubmissionDocumentSerializer(many=True, read_only=True)
 
@@ -206,8 +211,19 @@ class SubmissionSerializer(serializers.ModelSerializer):
         text_files = []
         visuals = []
         if request:
+            allowed_fields = {
+                name for name, field in self.fields.items() if not field.read_only
+            } | {"text_files", "visuals"}
+            unknown_fields = set(request.data) - allowed_fields
+            if unknown_fields:
+                raise serializers.ValidationError("Unknown submission fields were provided.")
             text_files = request.FILES.getlist("text_files")
             visuals = request.FILES.getlist("visuals")
+
+        if len(text_files) > settings.SUBMISSION_MAX_TEXT_FILES:
+            raise serializers.ValidationError({"text_files": "Too many text files."})
+        if len(visuals) > settings.SUBMISSION_MAX_VISUAL_FILES:
+            raise serializers.ValidationError({"visuals": "Too many visual or video files."})
 
         file_limit = settings.SUBMISSION_MAX_FILE_BYTES
         total_limit = settings.SUBMISSION_MAX_TOTAL_FILES_BYTES
@@ -219,6 +235,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
                             f"Each file must be at most {file_limit // (1024 * 1024)} MiB."
                         )
                     })
+                validate_upload(uploaded_file, field)
 
         if sum(uploaded_file.size for uploaded_file in text_files + visuals) > total_limit:
             raise serializers.ValidationError(
@@ -226,7 +243,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             )
 
         # Rule: there must be a text file or at least one visual
-        if not text_files and not visuals:
+        if self.instance is None and not text_files and not visuals:
             raise serializers.ValidationError(
                 "A submission must include a text file or at least one visual."
             )
