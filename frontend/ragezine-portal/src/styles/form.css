@@ -90,37 +90,9 @@
   cursor: pointer;
 }
 
-.portal-checkbox {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  flex: 0 0 auto;
-  border: 1px solid rgba(5, 3, 8, 0.22);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.65);
-  display: inline-grid;
-  place-items: center;
-}
-
-.portal-checkbox::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  background: var(--electric-blue);
-  transform: scale(0);
-  transition: transform 120ms ease;
-}
-
-.portal-checkbox:checked::before {
-  transform: scale(1);
-}
-
 .portal-input:focus,
 .portal-textarea:focus,
-.portal-file:focus,
-.portal-checkbox:focus-visible {
+.portal-file:focus {
   outline: none;
   border-color: var(--electric-blue);
   box-shadow: 0 0 0 4px var(--focus);
@@ -135,13 +107,6 @@
   font-family: "NewEdge666Light", sans-serif;
   font-size: 0.95rem;
   color: var(--text-muted);
-}
-
-.translation-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  margin-top: 0.8rem;
 }
 
 .hr {
