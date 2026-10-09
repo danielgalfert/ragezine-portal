@@ -13,6 +13,7 @@ from zipfile import ZipFile
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
 from submissions.models import Submission, SubmissionDocument
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
@@ -262,6 +263,103 @@ class SubmissionRepositoryTests(TestCase):
             SubmissionDocument.DocumentType.TEXT,
         )
 
+    def test_same_named_uploads_get_distinct_storage_keys(self):
+        submission = Submission.objects.create(
+            title="Same Name",
+            submission_type=Submission.SubmissionType.POETRY,
+            artist_name="Artist",
+            pronouns="they/them",
+            short_bio="Bio",
+            email="artist@example.com",
+            country_origin="DK",
+            countries_residence=["DK"],
+        )
+        repository = SubmissionDocumentRepository()
+        first = repository.create_text_document(
+            submission, SimpleUploadedFile("poem.pdf", b"first")
+        )
+        second = repository.create_text_document(
+            submission, SimpleUploadedFile("poem.pdf", b"second")
+        )
+
+        self.assertNotEqual(first.file.name, second.file.name)
+        self.assertTrue(first.file.name.startswith(f"submissions/texts/{submission.pk}/"))
+        self.assertEqual(first.original_filename, "poem.pdf")
+        self.assertEqual(second.original_filename, "poem.pdf")
+
+
+class SubmissionDeletionTests(TestCase):
+    def setUp(self):
+        media_dir = TemporaryDirectory()
+        self.addCleanup(media_dir.cleanup)
+        storage_override = override_settings(
+            STORAGES={
+                **settings.STORAGES,
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                    "OPTIONS": {"location": media_dir.name},
+                },
+            }
+        )
+        storage_override.enable()
+        self.addCleanup(storage_override.disable)
+        self.client = APIClient()
+        self.client.force_authenticate(
+            get_user_model().objects.create_user(
+                username="delete-editor", password="S3cretPass123", is_staff=True
+            )
+        )
+
+    def create_submission(self):
+        return Submission.objects.create(
+            title="Delete Piece",
+            submission_type=Submission.SubmissionType.POETRY,
+            artist_name="Artist",
+            pronouns="they/them",
+            short_bio="Bio",
+            email="artist@example.com",
+            country_origin="DK",
+            countries_residence=["DK"],
+        )
+
+    def test_delete_removes_submission_and_its_file(self):
+        submission = self.create_submission()
+        document = SubmissionDocument.create_from_upload(
+            submission,
+            SimpleUploadedFile("poem.pdf", b"poem"),
+            SubmissionDocument.DocumentType.TEXT,
+        )
+        storage = document.file.storage
+        name = document.file.name
+
+        response = self.client.delete(f"/api/submissions/{submission.pk}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Submission.objects.filter(pk=submission.pk).exists())
+        self.assertFalse(storage.exists(name))
+
+    def test_delete_preserves_file_referenced_by_another_submission(self):
+        first = self.create_submission()
+        document = SubmissionDocument.create_from_upload(
+            first,
+            SimpleUploadedFile("shared.pdf", b"shared"),
+            SubmissionDocument.DocumentType.TEXT,
+        )
+        second = self.create_submission()
+        SubmissionDocument.objects.create(
+            submission=second,
+            document_type=SubmissionDocument.DocumentType.TEXT,
+            file=document.file.name,
+            original_filename="shared.pdf",
+        )
+        storage = document.file.storage
+        name = document.file.name
+
+        response = self.client.delete(f"/api/submissions/{first.pk}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertTrue(storage.exists(name))
+
 
 class SubmissionDownloadsTests(TestCase):
     def setUp(self):
@@ -326,17 +424,45 @@ class SubmissionDownloadsTests(TestCase):
         with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
             names = archive.namelist()
             self.assertIn("poetry/", names)
-            self.assertIn("poetry/Artist_One/submission_details.txt", names)
-            self.assertIn("poetry/Artist_One/legacy.txt", names)
-            self.assertIn("poetry/Artist_One/poem.pdf", names)
-            self.assertIn("poetry/Artist_One/image.tiff", names)
+            root = f"poetry/Artist_One-{submission.pk}"
+            self.assertIn(f"{root}/submission_details.txt", names)
+            self.assertIn(f"{root}/legacy.txt", names)
+            self.assertIn(f"{root}/poem.pdf", names)
+            self.assertIn(f"{root}/image.tiff", names)
 
-            details = archive.read("poetry/Artist_One/submission_details.txt").decode("utf-8")
+            details = archive.read(f"{root}/submission_details.txt").decode("utf-8")
             self.assertIn("Title: Archive Piece", details)
             self.assertIn("Email: artist@example.com", details)
             self.assertIn("- legacy.txt", details)
             self.assertIn("- poem.pdf", details)
             self.assertIn("- image.tiff", details)
+
+    def test_complete_download_separates_submissions_with_same_artist_name(self):
+        submissions = []
+        for content in (b"first", b"second"):
+            submission = Submission.objects.create(
+                title="Same Name",
+                submission_type=Submission.SubmissionType.POETRY,
+                artist_name="Artist One",
+                pronouns="they/them",
+                short_bio="Bio",
+                email="artist@example.com",
+                country_origin="DK",
+                countries_residence=["DK"],
+            )
+            SubmissionDocument.create_from_upload(
+                submission,
+                SimpleUploadedFile("poem.pdf", content),
+                SubmissionDocument.DocumentType.TEXT,
+            )
+            submissions.append(submission)
+
+        with _build_complete_download_zip() as complete_zip, ZipFile(complete_zip) as archive:
+            for submission, content in zip(submissions, (b"first", b"second")):
+                self.assertEqual(
+                    archive.read(f"poetry/Artist_One-{submission.pk}/poem.pdf"),
+                    content,
+                )
 
     def test_excel_download_contains_review_sheet_and_submission_row(self):
         Submission.objects.create(

@@ -102,7 +102,7 @@
 .dashboard-list-head,
 .dashboard-row {
   display: grid;
-  grid-template-columns: 72px 132px 180px minmax(320px, 1.8fr) 170px 260px 220px 132px;
+  grid-template-columns: 72px 132px 180px minmax(320px, 1.8fr) 170px 260px 220px 166px;
   gap: 14px;
   align-items: start;
   min-width: 1460px;
@@ -193,6 +193,12 @@
 .dashboard-row-action {
   display: flex;
   justify-content: center;
+  gap: 8px;
+}
+
+.dashboard-delete-button {
+  min-height: 44px;
+  color: #8b1826;
 }
 
 .dashboard-download-button {
@@ -214,7 +220,7 @@
 @media (max-width: 980px) {
   .dashboard-list-head,
   .dashboard-row {
-    grid-template-columns: 64px 100px 130px minmax(240px, 1.4fr) 120px 180px 160px 124px;
+    grid-template-columns: 64px 100px 130px minmax(240px, 1.4fr) 120px 180px 160px 166px;
     min-width: 1180px;
   }
 }

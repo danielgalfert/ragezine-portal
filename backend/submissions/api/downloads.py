@@ -12,7 +12,6 @@ from openpyxl.styles import Alignment, Font
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAdminUser
 
-from submissions.documents import iter_submission_files
 from submissions.api.throttles import StaffExportThrottle
 from submissions.models import Submission, SubmissionDocument
 from submissions.repositories import SubmissionRepository
@@ -60,7 +59,10 @@ def _format_submission_details(submission):
         country_name(code) for code in submission.countries_residence
     ) or "-"
     socials = submission.socials or "-"
-    attached_files = [Path(stored_file.name).name for stored_file in iter_submission_files(submission)]
+    attached_files = [
+        document.original_filename or Path(document.file.name).name
+        for document in submission.documents.all()
+    ]
 
     if not attached_files:
         attached_files = ["-"]
@@ -202,22 +204,25 @@ def _write_submission_to_archive(archive, submission):
         submission.artist_name,
         f"submission-{submission.id}",
     )
-    submission_root = f"{submission.submission_type}/{artist_segment}"
+    submission_root = f"{submission.submission_type}/{artist_segment}-{submission.id}"
     archive.writestr(
         f"{submission_root}/{SUBMISSION_DETAILS_FILENAME}",
         _format_submission_details(submission),
     )
 
     used_names = set()
-    for stored_file in iter_submission_files(submission):
+    for document in submission.documents.all():
+        stored_file = document.file
         file_name = _safe_path_segment(
-            Path(stored_file.name).name,
+            document.original_filename or Path(stored_file.name).name,
             f"file-{len(used_names) + 1}",
         )
+        stem = Path(file_name).stem
+        suffix = Path(file_name).suffix
+        number = 2
         while file_name in used_names:
-            stem = Path(file_name).stem
-            suffix = Path(file_name).suffix
-            file_name = f"{stem}-{len(used_names) + 1}{suffix}"
+            file_name = f"{stem}-{number}{suffix}"
+            number += 1
         used_names.add(file_name)
 
         stored_file.open("rb")
