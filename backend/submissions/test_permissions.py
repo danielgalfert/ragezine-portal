@@ -166,7 +166,8 @@ class ProtectedDocumentTests(SimpleTestCase):
         self.assertEqual(response["Content-Type"], "application/octet-stream")
         self.assertIn('attachment; filename="poem.pdf"', response["Content-Disposition"])
         self.assertEqual(b"".join(response.streaming_content), b"private document bytes")
-        response.close()
+        self.assertTrue(response.closed)
+        self.assertTrue(stored_file.closed)
 
     def test_missing_document_returns_404(self):
         client = APIClient()
