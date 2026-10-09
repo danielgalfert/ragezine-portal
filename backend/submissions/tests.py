@@ -103,6 +103,18 @@ class SubmissionValidationTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data)
 
+    def test_non_english_submission_without_translation_checkbox(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["language"] = "Danish"
+        payload.pop("allow_translation")
+
+        response = self.client.post("/api/submissions/", payload, format="multipart")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        submission = Submission.objects.get(pk=response.data["id"])
+        self.assertFalse(submission.allow_translation)
+
     def test_submission_uploads_are_stored_as_documents(self):
         payload = self.base_payload()
         payload["email"] = "artist@example.com"
