@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 
 import CountrySelect from "../components/CountrySelect";
 import FormField from "../components/FormField";
@@ -275,10 +274,6 @@ export default function SubmissionPage() {
           <li><a href="#home">home</a></li>
           <li><a href="#submit">submit</a></li>
         </ul>
-
-        <div className="buttons">
-          <Link className="menu-button" to="/login">admin</Link>
-        </div>
       </nav>
 
       <section className="hero" id="home">

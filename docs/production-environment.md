@@ -14,6 +14,7 @@ credentials in `.env.example`.
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated public hostnames accepted by Django. |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated HTTPS origins for trusted form submissions. |
 | `RAGEZINE_PUBLIC_HOST` | Public portal hostname for Caddy automatic TLS; omit the scheme. |
+| `RAGEZINE_ADMIN_HOST` | Staff login and dashboard hostname for Caddy automatic TLS; omit the scheme. |
 | `DJANGO_DB_ENGINE` | `postgres` for the Compose deployment. |
 | `POSTGRES_DB` | PostgreSQL database name. |
 | `POSTGRES_USER` | PostgreSQL application user. |
