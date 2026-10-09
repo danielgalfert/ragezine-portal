@@ -11,7 +11,6 @@ import {
   sanitizeSingleLine,
 } from "../utils/sanitize";
 
-import "../styles/nav.css";
 import "../styles/description.css";
 import "../styles/form.css";
 
@@ -38,7 +37,6 @@ const initialForm = {
   country_origin: "",
   countries_residence: [],
   language: "English",
-  allow_translation: false,
 };
 
 function countWords(s) {
@@ -269,13 +267,6 @@ export default function SubmissionPage() {
 
   return (
     <div className="portal-page">
-      <nav>
-        <ul>
-          <li><a href="#home">home</a></li>
-          <li><a href="#submit">submit</a></li>
-        </ul>
-      </nav>
-
       <section className="hero" id="home">
         <div className="hero-panel">
           <div className="hero-copy">
@@ -426,22 +417,8 @@ export default function SubmissionPage() {
                   )}
                 </FormField>
 
-                <FormField
-                  label={
-                    <>
-                      Language <br />
-                      &nbsp;
-                    </>
-                  }
-                >
+                <FormField label="Language">
                   <input className="portal-input" value={form.language} onChange={(e) => update("language", e.target.value)} onBlur={(e) => update("language", e.target.value)} />
-                  <label className="portal-help translation-option">
-                    <input className="portal-checkbox" type="checkbox" checked={form.allow_translation} onChange={(e) => update("allow_translation", e.target.checked)} />
-                    <span>
-                      I am happy for the piece to be accompanied by an English
-                      translation.
-                    </span>
-                  </label>
                 </FormField>
               </div>
 
