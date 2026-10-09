@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, login, logout
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
@@ -27,11 +28,18 @@ def csrf(request):
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 @throttle_classes([LoginIPThrottle, LoginUsernameThrottle])
+@csrf_protect
 def login_view(request):
-    username = sanitize_single_line(request.data.get("username"))
-    password = request.data.get("password") or ""
+    raw_username = request.data.get("username")
+    password = request.data.get("password")
+    if not isinstance(raw_username, str) or not isinstance(password, str):
+        return Response(
+            {"message": "Username and password are required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    username = sanitize_single_line(raw_username)
 
-    if not username or not password:
+    if not username or not password or len(username) > 150 or len(password) > 1024:
         return Response(
             {"message": "Username and password are required."},
             status=status.HTTP_400_BAD_REQUEST,

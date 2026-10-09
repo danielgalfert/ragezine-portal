@@ -1,10 +1,12 @@
 {$RAGEZINE_PUBLIC_HOST} {
+	header Strict-Transport-Security "max-age=31536000"
 	@staff_pages path /login /dashboard /dashboard/*
 	redir @staff_pages https://{$RAGEZINE_ADMIN_HOST}{uri} 308
 	reverse_proxy nginx:80
 }
 
 {$RAGEZINE_ADMIN_HOST} {
+	header Strict-Transport-Security "max-age=31536000"
 	redir / /login 308
 	reverse_proxy nginx:80
 }

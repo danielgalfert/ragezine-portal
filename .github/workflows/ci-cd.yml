@@ -37,7 +37,7 @@ jobs:
           --health-retries 10
     env:
       DJANGO_DB_ENGINE: postgres
-      DJANGO_SECRET_KEY: ci-only-secret-key
+      DJANGO_SECRET_KEY: ci-only-secret-key-with-at-least-fifty-distinct-characters-1234567890
       DJANGO_DEBUG: "0"
       POSTGRES_DB: submissions
       POSTGRES_USER: ragezine
@@ -53,7 +53,10 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: python -m pip install -r backend/requirements.txt
+      - run: python -m pip install pip-audit && pip-audit -r backend/requirements.txt
       - run: python manage.py test submissions
+        working-directory: backend
+      - run: python manage.py check --deploy
         working-directory: backend
 
   frontend-checks:
@@ -66,6 +69,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/ragezine-portal/package-lock.json
       - run: npm ci
+        working-directory: frontend/ragezine-portal
+      - run: npm audit --audit-level=high
         working-directory: frontend/ragezine-portal
       - run: npm run lint
         working-directory: frontend/ragezine-portal
