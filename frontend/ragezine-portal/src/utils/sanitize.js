@@ -1,21 +1,27 @@
-// This deliberately matches ASCII control characters while preserving tabs and newlines.
 // eslint-disable-next-line no-control-regex
-const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+const CONTROL_CHARS_RE = /[\x00-\x1F\x7F]/g;
+// eslint-disable-next-line no-control-regex
+const MULTILINE_CONTROL_CHARS_RE = /[\x00-\x09\x0B-\x1F\x7F]/g;
+const BIDI_CONTROLS_RE = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
 const MULTISPACE_RE = /[ \t]+/g;
 const SIMPLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function sanitizeSingleLine(value) {
   return String(value ?? "")
-    .replace(CONTROL_CHARS_RE, "")
+    .normalize("NFC")
+    .replace(BIDI_CONTROLS_RE, "")
+    .replace(CONTROL_CHARS_RE, " ")
     .replace(MULTISPACE_RE, " ")
     .trim();
 }
 
 export function sanitizeMultiline(value) {
   return String(value ?? "")
-    .replace(CONTROL_CHARS_RE, "")
+    .normalize("NFC")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
+    .replace(BIDI_CONTROLS_RE, "")
+    .replace(MULTILINE_CONTROL_CHARS_RE, " ")
     .split("\n")
     .map((line) => line.replace(MULTISPACE_RE, " ").trim())
     .filter(Boolean)

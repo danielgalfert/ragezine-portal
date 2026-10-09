@@ -19,6 +19,16 @@ from submissions.models import Submission, SubmissionDocument
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
+def pdf_bytes(length=32):
+    signature = b"%PDF-1.4\n"
+    return signature + b"x" * (length - len(signature))
+
+
+def tiff_bytes(length=32):
+    signature = b"II*\x00"
+    return signature + b"x" * (length - len(signature))
+
+
 class AuthenticationEndpointsTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -75,7 +85,7 @@ class SubmissionValidationTests(TestCase):
             "countries_residence": ["DK"],
             "language": "English",
             "allow_translation": True,
-            "text_files": SimpleUploadedFile("poem.pdf", b"test file content", content_type="application/pdf"),
+            "text_files": SimpleUploadedFile("poem.pdf", pdf_bytes(), content_type="application/pdf"),
         }
 
     def test_submission_requires_email(self):
@@ -98,7 +108,7 @@ class SubmissionValidationTests(TestCase):
         payload["email"] = "artist@example.com"
         payload["visuals"] = SimpleUploadedFile(
             "image.tiff",
-            b"image content",
+            tiff_bytes(),
             content_type="image/tiff",
         )
 
@@ -127,7 +137,7 @@ class SubmissionValidationTests(TestCase):
         text_document = documents.get(document_type=SubmissionDocument.DocumentType.TEXT)
         download_response = self.client.get(f"/api/downloads/documents/{text_document.pk}/")
         self.assertEqual(download_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(b"".join(download_response.streaming_content), b"test file content")
+        self.assertEqual(b"".join(download_response.streaming_content), pdf_bytes())
         self.assertTrue(download_response.closed)
         self.assertEqual(self.client.get(f"/media/{text_document.file.name}").status_code, 404)
 
@@ -135,7 +145,7 @@ class SubmissionValidationTests(TestCase):
         payload = self.base_payload()
         payload["email"] = "artist@example.com"
         payload["visuals"] = SimpleUploadedFile(
-            "clip.mp4", b"video bytes", content_type="video/mp4"
+            "clip.mp4", b"\x00\x00\x00\x18ftypisomvideo bytes", content_type="video/mp4"
         )
 
         with patch("submissions.api.submission_views.send_submission_receipt"):
@@ -146,7 +156,7 @@ class SubmissionValidationTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         video = SubmissionDocument.objects.get(original_filename="clip.mp4")
         self.assertEqual(video.document_type, SubmissionDocument.DocumentType.VISUAL)
-        self.assertEqual(video.size, len(b"video bytes"))
+        self.assertEqual(video.size, len(b"\x00\x00\x00\x18ftypisomvideo bytes"))
 
         staff_user = get_user_model().objects.create_user(
             username="video-editor", password="S3cretPass123", is_staff=True
@@ -154,7 +164,7 @@ class SubmissionValidationTests(TestCase):
         self.client.force_authenticate(staff_user)
         download = self.client.get(f"/api/downloads/documents/{video.pk}/")
         self.assertEqual(download.status_code, status.HTTP_200_OK)
-        self.assertEqual(b"".join(download.streaming_content), b"video bytes")
+        self.assertEqual(b"".join(download.streaming_content), b"\x00\x00\x00\x18ftypisomvideo bytes")
         self.assertTrue(download.closed)
 
 
@@ -182,7 +192,7 @@ class SubmissionSizeLimitTests(TestCase):
     )
     def test_rejects_file_over_individual_limit_without_saving_submission(self):
         payload = self.base_payload()
-        payload["text_files"] = SimpleUploadedFile("large.pdf", b"x" * (1024 * 1024 + 1))
+        payload["text_files"] = SimpleUploadedFile("large.pdf", pdf_bytes(1024 * 1024 + 1))
 
         response = self.client.post(
             "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.50"
@@ -198,8 +208,8 @@ class SubmissionSizeLimitTests(TestCase):
     )
     def test_rejects_files_over_combined_limit_without_saving_submission(self):
         payload = self.base_payload()
-        payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * 600_000)
-        payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * 600_000)
+        payload["text_files"] = SimpleUploadedFile("poem.pdf", pdf_bytes(600_000))
+        payload["visuals"] = SimpleUploadedFile("image.tiff", tiff_bytes(600_000))
 
         response = self.client.post(
             "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.51"
@@ -215,8 +225,8 @@ class SubmissionSizeLimitTests(TestCase):
     )
     def test_accepts_files_at_both_limits(self):
         payload = self.base_payload()
-        payload["text_files"] = SimpleUploadedFile("poem.pdf", b"x" * (1024 * 1024))
-        payload["visuals"] = SimpleUploadedFile("image.tiff", b"x" * (1024 * 1024))
+        payload["text_files"] = SimpleUploadedFile("poem.pdf", pdf_bytes(1024 * 1024))
+        payload["visuals"] = SimpleUploadedFile("image.tiff", tiff_bytes(1024 * 1024))
 
         with patch("submissions.api.submission_views.send_submission_receipt"):
             response = self.client.post(
