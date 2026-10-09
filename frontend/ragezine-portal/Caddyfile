@@ -1,3 +1,10 @@
 {$RAGEZINE_PUBLIC_HOST} {
+	@staff_pages path /login /dashboard /dashboard/*
+	redir @staff_pages https://{$RAGEZINE_ADMIN_HOST}{uri} 308
+	reverse_proxy nginx:80
+}
+
+{$RAGEZINE_ADMIN_HOST} {
+	redir / /login 308
 	reverse_proxy nginx:80
 }

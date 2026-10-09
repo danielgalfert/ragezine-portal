@@ -4,6 +4,7 @@ services:
     restart: unless-stopped
     environment:
       RAGEZINE_PUBLIC_HOST: ${RAGEZINE_PUBLIC_HOST:?Set the public portal hostname}
+      RAGEZINE_ADMIN_HOST: ${RAGEZINE_ADMIN_HOST:?Set the staff portal hostname}
     ports:
       - "80:80"
       - "443:443"
@@ -80,7 +81,10 @@ services:
       start_period: 30s
 
   nginx:
-    build: ./frontend/ragezine-portal
+    build:
+      context: ./frontend/ragezine-portal
+      args:
+        VITE_PUBLIC_SITE_URL: https://${RAGEZINE_PUBLIC_HOST:?Set the public portal hostname}/
     restart: unless-stopped
     environment:
       RAGEZINE_NGINX_LOGIN_RATE: ${RAGEZINE_NGINX_LOGIN_RATE:-15r/m}
