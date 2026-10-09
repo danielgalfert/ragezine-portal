@@ -5,6 +5,7 @@ from tempfile import TemporaryFile
 from zipfile import ZIP_STORED, ZipFile
 
 from django.shortcuts import get_object_or_404
+from django.core.exceptions import SuspiciousFileOperation
 from django.http import FileResponse, Http404, HttpResponse
 from django.utils.text import get_valid_filename
 from openpyxl import Workbook
@@ -38,11 +39,15 @@ EXCEL_COLUMN_CONFIG = [
     ("created_at", "Created At"),
 ]
 WIDE_TEXT_FIELDS = {"description", "short_bio"}
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n", "\x00", "＝", "＋", "－", "＠")
 submission_repository = SubmissionRepository()
 
 
 def _safe_path_segment(value, fallback):
-    cleaned = get_valid_filename(sanitize_single_line(value))
+    try:
+        cleaned = get_valid_filename(sanitize_single_line(value))
+    except SuspiciousFileOperation:
+        cleaned = ""
     return cleaned or fallback
 
 
@@ -99,7 +104,10 @@ def _format_excel_field(submission, field_name):
         return ", ".join(country_name(code) for code in submission.countries_residence)
     if field_name == "created_at":
         return submission.created_at.replace(tzinfo=None)
-    return getattr(submission, field_name)
+    value = getattr(submission, field_name)
+    if isinstance(value, str) and value.lstrip().startswith(FORMULA_PREFIXES):
+        return "'" + value
+    return value
 
 
 def _resolve_excel_filename(submissions):
