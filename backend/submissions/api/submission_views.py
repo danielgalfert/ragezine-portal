@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
+from submissions.models import SubmissionDocument
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 from submissions.serializers import SubmissionSerializer
 
@@ -62,3 +63,20 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
         output_serializer = self.get_serializer(submission)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_destroy(self, instance):
+        submission_id = instance.pk
+        stored_files = {
+            document.file.name: document.file.storage
+            for document in instance.documents.all()
+            if document.file.name
+        }
+        instance.delete()
+
+        for name, storage in stored_files.items():
+            if SubmissionDocument.objects.filter(file=name).exists():
+                continue
+            try:
+                storage.delete(name)
+            except Exception:
+                logger.exception("Failed to delete file %s for submission %s", name, submission_id)
