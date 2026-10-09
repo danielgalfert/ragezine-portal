@@ -13,6 +13,7 @@ from zipfile import ZipFile
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
 from submissions.models import Submission, SubmissionDocument
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
@@ -459,14 +460,12 @@ class SubmissionDownloadsTests(TestCase):
             )
             submissions.append(submission)
 
-        response = self.client.get("/api/downloads/complete/")
-        with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
+        with _build_complete_download_zip() as complete_zip, ZipFile(complete_zip) as archive:
             for submission, content in zip(submissions, (b"first", b"second")):
                 self.assertEqual(
                     archive.read(f"poetry/Artist_One-{submission.pk}/poem.pdf"),
                     content,
                 )
-        response.close()
 
     def test_excel_download_contains_review_sheet_and_submission_row(self):
         Submission.objects.create(
