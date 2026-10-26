@@ -69,37 +69,30 @@ class SubmissionVotingTests(TestCase):
         detail = self.client.get(f"/api/submissions/{self.submission.pk}/")
         self.assertEqual(detail.data["vote_counts"], overview.data[0]["vote_counts"])
 
-    def test_see_comment_requires_and_posts_a_comment(self):
-        self.client.post(self.votes_url, {"choice": "yes"}, format="json")
-        for comment in ("", "  ", "x" * 4001):
-            with self.subTest(comment_length=len(comment)):
-                invalid = self.client.post(
-                    self.votes_url,
-                    {"choice": "see_comment", "comment": comment},
-                    format="json",
-                )
-                self.assertEqual(invalid.status_code, 400)
-                self.assertIn("comment", invalid.data)
-        self.assertEqual(SubmissionVote.objects.get().choice, "yes")
+    def test_see_comment_is_only_a_vote_choice(self):
+        first = self.client.post(
+            self.votes_url, {"choice": "see_comment"}, format="json"
+        )
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.data["counts"]["see_comment"], 1)
+        self.assertEqual(first.data["my_vote"]["choice"], "see_comment")
+        self.assertNotIn("comment", first.data["my_vote"])
         self.assertFalse(SubmissionComment.objects.exists())
 
-        saved = self.client.post(
+        invalid = self.client.post(
             self.votes_url,
-            {"choice": "see_comment", "comment": "  Needs work.\n  Please review.  "},
+            {"choice": "see_comment", "comment": "No vote comments"},
             format="json",
         )
-        self.assertEqual(saved.status_code, 200)
-        self.assertEqual(saved.data["counts"]["see_comment"], 1)
-        self.assertEqual(saved.data["counts"]["yes"], 0)
-        self.assertEqual(saved.data["my_vote"]["comment"], "Needs work.\nPlease review.")
-        self.assertEqual(
-            SubmissionComment.objects.get().body, "Needs work.\nPlease review."
-        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertEqual(SubmissionVote.objects.get().choice, "see_comment")
 
         changed = self.client.post(self.votes_url, {"choice": "no"}, format="json")
-        self.assertEqual(changed.data["my_vote"]["comment"], "")
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(changed.data["counts"]["see_comment"], 0)
         self.assertEqual(changed.data["counts"]["no"], 1)
-        self.assertEqual(SubmissionComment.objects.count(), 1)
+        self.assertEqual(SubmissionVote.objects.count(), 1)
+        self.assertFalse(SubmissionComment.objects.exists())
 
     def test_votes_are_staff_only(self):
         for user in (None, self.reader):

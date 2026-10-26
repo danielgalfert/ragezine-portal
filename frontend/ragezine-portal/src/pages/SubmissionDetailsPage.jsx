@@ -132,8 +132,6 @@ export default function SubmissionDetailsPage() {
   const [submission, setSubmission] = useState(null);
   const [comments, setComments] = useState([]);
   const [voteState, setVoteState] = useState(null);
-  const [voteChoice, setVoteChoice] = useState("");
-  const [voteComment, setVoteComment] = useState("");
   const [voteError, setVoteError] = useState("");
   const [voteMessage, setVoteMessage] = useState("");
   const [savingVote, setSavingVote] = useState(false);
@@ -161,8 +159,6 @@ export default function SubmissionDetailsPage() {
         setSubmission(details);
         setComments(Array.isArray(notes) ? notes : notes.results || []);
         setVoteState(voteData);
-        setVoteChoice(voteData.my_vote?.choice || "");
-        setVoteComment(voteData.my_vote?.comment || "");
         setSelectedFileId(details.documents?.[0]?.id ?? null);
       } catch (err) {
         if (active) setError(err?.response?.status === 404 ? "Submission not found." : "Could not load this submission.");
@@ -195,36 +191,17 @@ export default function SubmissionDetailsPage() {
     }
   }
 
-  async function onVoteSubmit(event) {
-    event.preventDefault();
+  async function onVote(choice) {
     if (savingVote) return;
     setVoteError("");
     setVoteMessage("");
-    if (!voteChoice) {
-      setVoteError("Choose a vote.");
-      return;
-    }
-    if (voteChoice === "see_comment" && !voteComment.trim()) {
-      setVoteError("Add a comment for this vote.");
-      return;
-    }
     setSavingVote(true);
     try {
-      const nextState = await saveSubmissionVote(
-        id,
-        voteChoice,
-        voteChoice === "see_comment" ? voteComment.trim() : "",
-      );
+      const nextState = await saveSubmissionVote(id, choice);
       setVoteState(nextState);
-      setVoteComment(nextState.my_vote?.comment || "");
       setVoteMessage("Vote saved.");
-      if (voteChoice === "see_comment") {
-        getSubmissionComments(id)
-          .then((notes) => setComments(Array.isArray(notes) ? notes : notes.results || []))
-          .catch(() => setVoteMessage("Vote saved. Refresh to see it in staff comments."));
-      }
     } catch (err) {
-      setVoteError(err?.response?.data?.comment?.[0] || err?.response?.data?.detail || "Could not save this vote.");
+      setVoteError(err?.response?.data?.detail || "Could not save this vote.");
     } finally {
       setSavingVote(false);
     }
@@ -274,66 +251,6 @@ export default function SubmissionDetailsPage() {
                 </dl>
               </section>
 
-              <section className="details-card details-voting" aria-labelledby="votes-heading">
-                <h2 id="votes-heading">Staff votes</h2>
-                <div className="details-vote-counts" aria-label="Vote counts">
-                  <span>Yes <strong>{voteState?.counts?.yes || 0}</strong></span>
-                  <span>No <strong>{voteState?.counts?.no || 0}</strong></span>
-                  <span>See comment <strong>{voteState?.counts?.see_comment || 0}</strong></span>
-                  <span>Total <strong>{voteState?.counts?.total || 0}</strong></span>
-                </div>
-                <form onSubmit={onVoteSubmit}>
-                  <fieldset>
-                    <legend>Your vote</legend>
-                    {[
-                      ["yes", "Yes"],
-                      ["no", "No"],
-                      ["see_comment", "See comment"],
-                    ].map(([value, label]) => (
-                      <label key={value} className="details-vote-option">
-                        <input
-                          type="radio"
-                          name="submission-vote"
-                          value={value}
-                          checked={voteChoice === value}
-                          onChange={() => { setVoteChoice(value); setVoteError(""); setVoteMessage(""); }}
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </fieldset>
-                  {voteChoice === "see_comment" && (
-                    <label className="details-vote-comment" htmlFor="vote-comment">
-                      Comment required
-                      <textarea
-                        id="vote-comment"
-                        value={voteComment}
-                        maxLength={4000}
-                        rows={4}
-                        required
-                        onChange={(event) => setVoteComment(event.target.value)}
-                      />
-                    </label>
-                  )}
-                  {voteError && <p role="alert" className="details-error">{voteError}</p>}
-                  {voteMessage && <p role="status">{voteMessage}</p>}
-                  <button type="submit" className="smallBtn" disabled={savingVote || !voteChoice}>
-                    {savingVote ? "saving..." : voteState?.my_vote ? "change vote" : "save vote"}
-                  </button>
-                </form>
-                <div className="details-voter-list">
-                  <h3>Votes by staff</h3>
-                  {!voteState?.votes?.length && <p>No votes yet.</p>}
-                  {voteState?.votes?.map((vote) => (
-                    <article key={vote.id} className="details-voter">
-                      <div><strong>{vote.voter_name}</strong><span>{vote.choice === "see_comment" ? "See comment" : vote.choice === "yes" ? "Yes" : "No"}</span></div>
-                      <time dateTime={vote.updated_at}>{formatDate(vote.updated_at)}</time>
-                      {vote.comment && <p>{vote.comment}</p>}
-                    </article>
-                  ))}
-                </div>
-              </section>
-
               <section className="details-card" aria-labelledby="files-heading">
                 <h2 id="files-heading">Files ({files.length})</h2>
                 {files.length === 0 ? <p>No files are attached.</p> : (
@@ -361,6 +278,42 @@ export default function SubmissionDetailsPage() {
                     </div>
                   </div>
                 )}
+              </section>
+
+              <section className="details-card details-voting" aria-labelledby="votes-heading">
+                <h2 id="votes-heading">Staff votes</h2>
+                <div className="details-vote-counts" aria-label="Vote counts">
+                  <span>Yes <strong>{voteState?.counts?.yes || 0}</strong></span>
+                  <span>No <strong>{voteState?.counts?.no || 0}</strong></span>
+                  <span>See comment <strong>{voteState?.counts?.see_comment || 0}</strong></span>
+                  <span>Total <strong>{voteState?.counts?.total || 0}</strong></span>
+                </div>
+                <div className="details-vote-actions" role="group" aria-label="Your vote">
+                  {[["yes", "Yes"], ["no", "No"], ["see_comment", "See comment"]].map(([choice, label]) => (
+                    <button
+                      key={choice}
+                      type="button"
+                      className={`smallBtn details-vote-button${voteState?.my_vote?.choice === choice ? " is-selected" : ""}`}
+                      onClick={() => onVote(choice)}
+                      aria-pressed={voteState?.my_vote?.choice === choice}
+                      disabled={savingVote}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {voteError && <p role="alert" className="details-error">{voteError}</p>}
+                {voteMessage && <p role="status">{voteMessage}</p>}
+                <div className="details-voter-list">
+                  <h3>Votes by staff</h3>
+                  {!voteState?.votes?.length && <p>No votes yet.</p>}
+                  {voteState?.votes?.map((vote) => (
+                    <article key={vote.id} className="details-voter">
+                      <div><strong>{vote.voter_name}</strong><span>{vote.choice === "see_comment" ? "See comment" : vote.choice === "yes" ? "Yes" : "No"}</span></div>
+                      <time dateTime={vote.updated_at}>{formatDate(vote.updated_at)}</time>
+                    </article>
+                  ))}
+                </div>
               </section>
 
               <section className="details-card details-comments" aria-labelledby="comments-heading">

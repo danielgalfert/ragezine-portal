@@ -96,20 +96,10 @@ class SubmissionCommentSerializer(serializers.ModelSerializer):
 
 class SubmissionVoteInputSerializer(serializers.Serializer):
     choice = serializers.ChoiceField(choices=SubmissionVote.Choice.choices)
-    comment = serializers.CharField(required=False, allow_blank=True, max_length=4000)
 
     def validate(self, attrs):
-        comment = sanitize_multiline(attrs.get("comment", ""))
-        if attrs["choice"] == SubmissionVote.Choice.SEE_COMMENT:
-            if not comment:
-                raise serializers.ValidationError(
-                    {"comment": "Enter a comment for this vote."}
-                )
-        elif comment:
-            raise serializers.ValidationError(
-                {"comment": "Use see comment to attach a comment to a vote."}
-            )
-        attrs["comment"] = comment
+        if set(self.initial_data) != {"choice"}:
+            raise serializers.ValidationError("Send only a vote choice.")
         return attrs
 
 
@@ -118,7 +108,7 @@ class SubmissionVoteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SubmissionVote
-        fields = ["id", "voter_id", "voter_name", "choice", "comment", "updated_at"]
+        fields = ["id", "voter_id", "voter_name", "choice", "updated_at"]
 
     def get_voter_name(self, obj):
         return obj.voter.get_username()

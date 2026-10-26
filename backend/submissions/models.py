@@ -152,7 +152,7 @@ class SubmissionVote(models.Model):
         related_name="submission_votes",
     )
     choice = models.CharField(max_length=16, choices=Choice.choices)
-    comment = models.TextField(blank=True)
+    legacy_comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -164,12 +164,8 @@ class SubmissionVote(models.Model):
                 name="one_vote_per_submission_account",
             ),
             models.CheckConstraint(
-                condition=(
-                    models.Q(choice="see_comment") & ~models.Q(comment="")
-                ) | (
-                    models.Q(choice__in=["yes", "no"]) & models.Q(comment="")
-                ),
-                name="submission_vote_comment_matches_choice",
+                condition=models.Q(choice__in=["yes", "no", "see_comment"]),
+                name="submission_vote_known_choice",
             ),
         ]
 
