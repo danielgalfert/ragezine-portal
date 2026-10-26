@@ -123,12 +123,12 @@ class SubmissionDetailsTests(TestCase):
         self.assertEqual(response["Content-Type"], "application/pdf")
         self.assertEqual(response["X-Frame-Options"], "SAMEORIGIN")
         self.assertEqual(b"".join(response.streaming_content), content[2:7])
-        response.close()
+        self.assertTrue(response.closed)
 
         suffix = self.client.get(url, HTTP_RANGE="bytes=-4")
         self.assertEqual(suffix.status_code, 206)
         self.assertEqual(b"".join(suffix.streaming_content), content[-4:])
-        suffix.close()
+        self.assertTrue(suffix.closed)
 
         invalid = self.client.get(url, HTTP_RANGE="bytes=500-")
         self.assertEqual(invalid.status_code, 416)
@@ -151,7 +151,7 @@ class SubmissionDetailsTests(TestCase):
         self.assertEqual(response["Content-Type"], "video/mp4")
         self.assertEqual(response["Accept-Ranges"], "bytes")
         self.assertEqual(b"".join(response.streaming_content), content[4:12])
-        response.close()
+        self.assertTrue(response.closed)
 
     def test_local_video_access_uses_private_preview(self):
         document = self.add_document("clip.mp4", b"video-bytes", "video/mp4")
