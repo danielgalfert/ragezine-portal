@@ -13,6 +13,44 @@
   gap: 18px;
 }
 
+.dashboard-search {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 560px);
+}
+
+.dashboard-search label {
+  font-family: "NewEdge666Slanted", sans-serif;
+  font-size: 0.9rem;
+  text-transform: lowercase;
+}
+
+.dashboard-search-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.dashboard-search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid rgba(5, 3, 8, 0.3);
+  border-radius: 12px;
+  background: rgba(255, 235, 255, 0.96);
+  color: #130b18;
+  font: inherit;
+}
+
+.dashboard-search input:focus-visible {
+  outline: 2px solid #4d2d84;
+  outline-offset: 2px;
+}
+
+.dashboard-search-controls .smallBtn {
+  min-height: 44px;
+}
+
 .dashboard-header {
   display: grid;
   gap: 12px;
