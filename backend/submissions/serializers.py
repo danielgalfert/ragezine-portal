@@ -4,7 +4,7 @@ from django.conf import settings
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Submission, SubmissionComment, SubmissionDocument
+from .models import Submission, SubmissionComment, SubmissionDocument, Tag
 from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
@@ -93,6 +93,24 @@ class SubmissionCommentSerializer(serializers.ModelSerializer):
         return value
 
 
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ["id", "name"]
+
+
+class TagNameSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=50)
+
+    def validate_name(self, value):
+        name = sanitize_single_line(value).casefold()
+        if not name or len(name) > 50:
+            raise serializers.ValidationError("Enter a tag of at most 50 characters.")
+        if not all(char.isalnum() or char in " -_" for char in name):
+            raise serializers.ValidationError("Use letters, numbers, spaces, hyphens, or underscores.")
+        return name
+
+
 class SubmissionSerializer(serializers.ModelSerializer):
     volume = serializers.IntegerField(read_only=True)
     email = serializers.EmailField(required=True, allow_blank=False)
@@ -109,6 +127,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         max_length=20,
     )
     documents = SubmissionDocumentSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
         model = Submission
@@ -131,6 +150,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "language",
             "allow_translation",
             "documents",
+            "tags",
             "created_at",
             "updated_at",
         ]

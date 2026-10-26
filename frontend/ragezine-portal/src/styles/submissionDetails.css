@@ -67,6 +67,56 @@
   line-height: 1.4;
 }
 
+.details-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.details-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 999px;
+  background: rgba(206, 189, 239, .65);
+  color: #180d1b;
+}
+
+.details-tag button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .8);
+  color: #180d1b;
+  cursor: pointer;
+}
+
+.details-tags form {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.details-tag-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.details-tag-controls input {
+  flex: 1;
+  min-width: min(100%, 220px);
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid rgba(5, 3, 8, .3);
+  border-radius: 10px;
+  background: #fff;
+  color: #180d1b;
+}
+
 .details-files-layout {
   display: grid;
   grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);

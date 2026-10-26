@@ -54,6 +54,7 @@ export default function DashboardSubmissionsList() {
   const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
   const [titleQuery, setTitleQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -84,10 +85,20 @@ export default function DashboardSubmissionsList() {
     };
   }, []);
 
-  const filteredSubmissions = useMemo(
-    () => searchSubmissionsByTitle(submissions, titleQuery),
-    [submissions, titleQuery],
-  );
+  const availableTags = useMemo(() => {
+    const tags = new Map();
+    submissions.forEach((submission) => {
+      submission.tags?.forEach((tag) => tags.set(tag.id, tag));
+    });
+    return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [submissions]);
+
+  const filteredSubmissions = useMemo(() => {
+    const tagged = selectedTagId
+      ? submissions.filter((submission) => submission.tags?.some((tag) => String(tag.id) === selectedTagId))
+      : submissions;
+    return searchSubmissionsByTitle(tagged, titleQuery);
+  }, [submissions, titleQuery, selectedTagId]);
 
   const summary = useMemo(() => {
     const byType = filteredSubmissions.reduce((acc, submission) => {
@@ -145,35 +156,51 @@ export default function DashboardSubmissionsList() {
   return (
     <section className="dashboard-section" id="submissions-list">
       <div className="dashboard-shell">
-        <div className="dashboard-search">
-          <label htmlFor="dashboard-title-search">search by title</label>
-          <div className="dashboard-search-controls">
-            <input
-              id="dashboard-title-search"
-              type="search"
-              value={titleQuery}
-              onChange={handleTitleQueryChange}
-              placeholder="Find a submission title"
-              autoComplete="off"
-            />
-            {titleQuery && (
-              <button
-                type="button"
-                className="smallBtn"
-                onClick={() => {
-                  setTitleQuery("");
-                  setPage(1);
-                }}
-              >
-                clear
-              </button>
-            )}
+        <div className="dashboard-filters">
+          <div className="dashboard-search">
+            <label htmlFor="dashboard-title-search">search by title</label>
+            <div className="dashboard-search-controls">
+              <input
+                id="dashboard-title-search"
+                type="search"
+                value={titleQuery}
+                onChange={handleTitleQueryChange}
+                placeholder="Find a submission title"
+                autoComplete="off"
+              />
+              {titleQuery && (
+                <button
+                  type="button"
+                  className="smallBtn"
+                  onClick={() => {
+                    setTitleQuery("");
+                    setPage(1);
+                  }}
+                >
+                  clear
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="dashboard-tag-filter">
+            <label htmlFor="dashboard-tag-filter">filter by tag</label>
+            <select
+              id="dashboard-tag-filter"
+              value={selectedTagId}
+              onChange={(event) => {
+                setSelectedTagId(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">all tags</option>
+              {availableTags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+            </select>
           </div>
         </div>
         <div className="dashboard-header">
           <div className="dashboard-summary">
             <div className="dashboard-summary-card">
-              <span className="dashboard-summary-label">{titleQuery.trim() ? "results" : "total"}</span>
+              <span className="dashboard-summary-label">{titleQuery.trim() || selectedTagId ? "results" : "total"}</span>
               <strong>{filteredSubmissions.length}</strong>
             </div>
             {summary.map((item) => (
@@ -211,7 +238,7 @@ export default function DashboardSubmissionsList() {
 
         {!loading && !error && submissions.length > 0 && filteredSubmissions.length === 0 && (
           <div className="dashboard-panel" role="status">
-            <p>No titles match “{titleQuery.trim()}”.</p>
+            <p>No submissions match these filters.</p>
           </div>
         )}
 
@@ -220,7 +247,7 @@ export default function DashboardSubmissionsList() {
             <div className="dashboard-toolbar">
               <p className="dashboard-range" role="status">
                 Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of {filteredSubmissions.length}
-                {titleQuery.trim() && ` matching titles (${submissions.length} total)`}
+                {(titleQuery.trim() || selectedTagId) && ` results (${submissions.length} total)`}
               </p>
               <div className="dashboard-pagination">
                 <button
@@ -265,6 +292,11 @@ export default function DashboardSubmissionsList() {
                   <div className="dashboard-row-title">
                     <strong>{submission.title}</strong>
                     <p>{submission.description || submission.short_bio || "No description provided."}</p>
+                    {submission.tags?.length > 0 && (
+                      <div className="dashboard-tag-list" aria-label="Tags">
+                        {submission.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}
+                      </div>
+                    )}
                     {submission.documents?.length > 0 && (
                       <div className="dashboard-document-list">
                         {submission.documents.map((document) => (
