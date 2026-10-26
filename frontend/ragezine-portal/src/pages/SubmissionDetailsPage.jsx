@@ -5,8 +5,11 @@ import { getSession, logoutUser } from "../services/authService";
 import {
   addSubmissionComment,
   addSubmissionTag,
+  clearSubmissionVote,
   getSubmissionById,
   getSubmissionComments,
+  getSubmissionVotes,
+  saveSubmissionVote,
   getSubmissionPreviewText,
   getSubmissionPreviewUrl,
   getTags,
@@ -132,6 +135,9 @@ export default function SubmissionDetailsPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [submission, setSubmission] = useState(null);
   const [comments, setComments] = useState([]);
+  const [voteState, setVoteState] = useState(null);
+  const [voteError, setVoteError] = useState("");
+  const [savingVote, setSavingVote] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [error, setError] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -152,14 +158,16 @@ export default function SubmissionDetailsPage() {
           navigate("/login", { replace: true });
           return;
         }
-        const [details, notes, tags] = await Promise.all([
+        const [details, notes, voteData, tags] = await Promise.all([
           getSubmissionById(id),
           getSubmissionComments(id),
+          getSubmissionVotes(id),
           getTags().catch(() => []),
         ]);
         if (!active) return;
         setSubmission(details);
         setComments(Array.isArray(notes) ? notes : notes.results || []);
+        setVoteState(voteData);
         setAvailableTags(Array.isArray(tags) ? tags : tags.results || []);
         setSelectedFileId(details.documents?.[0]?.id ?? null);
       } catch (err) {
@@ -190,6 +198,22 @@ export default function SubmissionDetailsPage() {
       setCommentError(err?.response?.data?.body?.[0] || "Could not save this comment.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onVote(choice) {
+    if (savingVote || (voteState?.my_vote?.choice || "none") === choice) return;
+    setVoteError("");
+    setSavingVote(true);
+    try {
+      const nextState = choice === "none"
+        ? await clearSubmissionVote(id)
+        : await saveSubmissionVote(id, choice);
+      setVoteState(nextState);
+    } catch (err) {
+      setVoteError(err?.response?.data?.detail || "Could not save this vote.");
+    } finally {
+      setSavingVote(false);
     }
   }
 
@@ -344,6 +368,49 @@ export default function SubmissionDetailsPage() {
                     </div>
                   </div>
                 )}
+              </section>
+
+              <section className="details-card details-voting" aria-labelledby="votes-heading">
+                <h2 id="votes-heading">Votes</h2>
+                <div className="details-vote-top">
+                  <div>
+                    <h3>Your vote</h3>
+                    <div className="details-vote-actions" role="group" aria-label="Your vote">
+                      {[["none", "No vote"], ["yes", "Yes"], ["no", "No"], ["see_comment", "See comment"]].map(([choice, label]) => (
+                        <button
+                          key={choice}
+                          type="button"
+                          className={`smallBtn details-vote-button${(voteState?.my_vote?.choice || "none") === choice ? " is-selected" : ""}`}
+                          onClick={() => onVote(choice)}
+                          aria-pressed={(voteState?.my_vote?.choice || "none") === choice}
+                          disabled={savingVote}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="details-vote-summary">
+                    <h3>Vote totals</h3>
+                    <div className="details-vote-counts" aria-label="Vote counts">
+                      <span>Yes <strong>{voteState?.counts?.yes || 0}</strong></span>
+                      <span>No <strong>{voteState?.counts?.no || 0}</strong></span>
+                      <span>See comment <strong>{voteState?.counts?.see_comment || 0}</strong></span>
+                      <span>Total <strong>{voteState?.counts?.total || 0}</strong></span>
+                    </div>
+                  </div>
+                </div>
+                {voteError && <p role="alert" className="details-error">{voteError}</p>}
+                <div className="details-voter-list">
+                  <h3>Votes by staff</h3>
+                  {!voteState?.votes?.length && <p>No votes yet.</p>}
+                  {voteState?.votes?.map((vote) => (
+                    <article key={vote.id} className="details-voter">
+                      <div><strong>{vote.voter_name}</strong><span>{vote.choice === "see_comment" ? "See comment" : vote.choice === "yes" ? "Yes" : "No"}</span></div>
+                      <time dateTime={vote.updated_at}>Last changed {formatDate(vote.updated_at)}</time>
+                    </article>
+                  ))}
+                </div>
               </section>
 
               <section className="details-card details-comments" aria-labelledby="comments-heading">

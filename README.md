@@ -54,8 +54,11 @@ stream with byte ranges, so the browser can request part of a large file.
 Images open in the page. DOCX and ODT files show extracted plain text; TIFF
 files show a smaller PNG. Older DOC files and any file that cannot be rendered
 safely offer the original download instead. Preview responses are private and
-are not cached. Apply Django migration `0008_submissioncomment` when deploying
-this branch.
+are not cached. Staff voting sits between Files and Staff comments. Each
+staff account can choose Yes, No, or See comment and can change that choice.
+No vote is the default and removes that account's vote from the totals.
+See comment only records a vote; staff comments remain separate. Apply Django
+migrations through `0010` when deploying this branch.
 
 For S3-backed videos, the staff page requests a one-hour, signed URL for the
 selected file. The browser plays it inside the page but reads byte ranges

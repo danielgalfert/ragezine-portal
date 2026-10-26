@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
-from submissions.models import Submission, SubmissionDocument, Tag
+from submissions.models import Submission, SubmissionDocument, SubmissionVote, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
@@ -506,6 +506,17 @@ class SubmissionDownloadsTests(TestCase):
             allow_translation=False,
         )
         submission.tags.add(Tag.objects.create(name="for review"), Tag.objects.create(name="selected"))
+        other_reviewer = get_user_model().objects.create_user(
+            username="other-reviewer", password="S3cretPass123", is_staff=True
+        )
+        SubmissionVote.objects.create(
+            submission=submission, voter=self.user, choice=SubmissionVote.Choice.YES
+        )
+        SubmissionVote.objects.create(
+            submission=submission,
+            voter=other_reviewer,
+            choice=SubmissionVote.Choice.SEE_COMMENT,
+        )
 
         response = self.client.get("/api/downloads/excel/")
 
@@ -519,6 +530,7 @@ class SubmissionDownloadsTests(TestCase):
         workbook = load_workbook(filename=BytesIO(response.content))
         self.assertIn("Poetry", workbook.sheetnames)
         self.assertIn("Long form writing", workbook.sheetnames)
+        self.assertIn("Votes", workbook.sheetnames)
 
         sheet = workbook["Long form writing"]
         header_row = [cell.value for cell in sheet[1]]
@@ -539,6 +551,10 @@ class SubmissionDownloadsTests(TestCase):
             "Language",
             "Created At",
             "Tags",
+            "Yes Votes",
+            "No Votes",
+            "See Comment Votes",
+            "Total Votes",
         ]
 
         self.assertEqual(header_row, expected_headers)
@@ -550,6 +566,25 @@ class SubmissionDownloadsTests(TestCase):
         self.assertEqual(submission_row[10], "Denmark")
         self.assertEqual(submission_row[11], "Germany")
         self.assertEqual(submission_row[14], "for review, selected")
+        self.assertEqual(submission_row[15:19], [1, 0, 1, 2])
+
+        votes_sheet = workbook["Votes"]
+        self.assertEqual(
+            [cell.value for cell in votes_sheet[1]],
+            [
+                "Submission ID", "Submission Title", "Submission Type",
+                "Voter", "Vote", "Last Changed",
+            ],
+        )
+        vote_rows = list(votes_sheet.iter_rows(min_row=2, values_only=True))
+        self.assertEqual(
+            {(row[0], row[3], row[4]) for row in vote_rows},
+            {
+                (submission.pk, "admin", "Yes"),
+                (submission.pk, "other-reviewer", "See comment"),
+            },
+        )
+        self.assertTrue(all(row[5] for row in vote_rows))
 
 
 class SubmissionEmailTests(TestCase):

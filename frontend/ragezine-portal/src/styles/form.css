@@ -32,6 +32,10 @@
   min-width: 0;
 }
 
+.portal-grid-socials .portal-label {
+  min-height: 2.4em;
+}
+
 .portal-field {
   display: flex;
   flex-direction: column;
@@ -426,6 +430,10 @@
 
   .portal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .portal-grid-socials .portal-label {
+    min-height: 0;
   }
 }
 
