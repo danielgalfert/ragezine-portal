@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
-from submissions.models import SubmissionComment, SubmissionDocument, SubmissionVote
+from submissions.models import SubmissionDocument, SubmissionVote
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 from submissions.serializers import (
     SubmissionCommentSerializer,
@@ -107,22 +107,11 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
         serializer = SubmissionVoteInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        choice = serializer.validated_data["choice"]
-        comment = serializer.validated_data["comment"]
-
-        with transaction.atomic():
-            vote, created = SubmissionVote.objects.update_or_create(
-                submission=submission,
-                voter=request.user,
-                defaults={"choice": choice, "comment": comment},
-            )
-            if choice == SubmissionVote.Choice.SEE_COMMENT:
-                SubmissionComment.objects.create(
-                    submission=submission,
-                    author=request.user,
-                    author_name=request.user.get_username(),
-                    body=comment,
-                )
+        vote, created = SubmissionVote.objects.update_or_create(
+            submission=submission,
+            voter=request.user,
+            defaults={"choice": serializer.validated_data["choice"]},
+        )
 
         return Response(
             self._vote_state(submission, request.user),
@@ -131,7 +120,10 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def _vote_state(submission, user):
-        votes = list(submission.votes.select_related("voter"))
+        votes = list(
+            submission.votes.filter(choice__in=SubmissionVote.Choice.values)
+            .select_related("voter")
+        )
         counts = {choice: 0 for choice in SubmissionVote.Choice.values}
         for vote in votes:
             counts[vote.choice] += 1

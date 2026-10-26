@@ -24,9 +24,9 @@ export async function getSubmissionVotes(id) {
   return response.data;
 }
 
-export async function saveSubmissionVote(id, choice, comment = "") {
+export async function saveSubmissionVote(id, choice) {
   await getCsrfCookie();
-  const response = await client.post(`/submissions/${id}/votes/`, { choice, comment });
+  const response = await client.post(`/submissions/${id}/votes/`, { choice });
   return response.data;
 }
 
