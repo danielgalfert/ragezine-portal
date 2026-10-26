@@ -45,6 +45,18 @@ disk and sent as streamed downloads rather than held in memory.
 
 Submission receipts do not attach uploaded files, including videos.
 
+## Staff submission details
+
+Select **details** in the dashboard list to open a submission. The page shows
+all stored fields, file downloads, previews, and staff comments. Only staff
+accounts can read or add comments or open previews. PDF and video previews
+stream with byte ranges, so the browser can request part of a large file.
+Images open in the page. DOCX and ODT files show extracted plain text; TIFF
+files show a smaller PNG. Older DOC files and any file that cannot be rendered
+safely offer the original download instead. Preview responses are private and
+are not cached. Apply Django migration `0008_submissioncomment` when deploying
+this branch.
+
 ## Staff accounts
 
 With the Compose stack running, create a dashboard account from the project root:
