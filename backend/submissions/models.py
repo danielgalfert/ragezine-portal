@@ -109,3 +109,29 @@ class SubmissionDocument(models.Model):
             f"{self.get_document_type_display()} "
             f"for {self.submission_id}: {self.file.name}"
         )
+
+
+class SubmissionComment(models.Model):
+    submission = models.ForeignKey(
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="staff_comments",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="submission_comments",
+    )
+    author_name = models.CharField(max_length=150)
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(fields=["submission", "created_at"], name="submission_comment_order_idx"),
+        ]
+
+    def __str__(self):
+        return f"Comment on submission {self.submission_id} by {self.author_name}"

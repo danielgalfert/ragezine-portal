@@ -1,0 +1,217 @@
+"""Private inline previews with byte ranges for large PDF and video files."""
+
+from pathlib import Path
+import re
+from urllib.parse import urlsplit
+
+from botocore.exceptions import BotoCoreError, ClientError
+from django.conf import settings
+from django.http import Http404, HttpResponse, HttpResponseRedirect, StreamingHttpResponse
+from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django.utils.http import content_disposition_header
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from storages.backends.s3 import S3Storage
+
+from submissions.models import SubmissionDocument
+from submissions.preview import (
+    MAX_DOCUMENT_PREVIEW_BYTES,
+    MAX_TEXT_PREVIEW_BYTES,
+    MAX_TIFF_PREVIEW_BYTES,
+    PreviewUnavailable,
+    document_suffix,
+    preview_content_type,
+    preview_kind,
+    read_document_preview,
+    read_text_preview,
+    render_tiff_preview,
+)
+
+
+class InvalidRange(Exception):
+    pass
+
+
+VIDEO_URL_TTL_SECONDS = 60 * 60
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def video_stream_access(request, document_id):
+    """Authorize staff, then let S3 serve video bytes to the browser."""
+    document = get_object_or_404(SubmissionDocument, pk=document_id)
+    if preview_kind(document) != "video":
+        return Response(
+            {"detail": "This file is not a video preview."},
+            status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
+
+    stored_file = document.file
+    if not stored_file.name:
+        raise Http404("Document file not found.")
+
+    storage = stored_file.storage
+    expires_in = None
+    if isinstance(storage, S3Storage):
+        # A custom domain needs its own CloudFront signer. Never return a public URL.
+        if not storage.querystring_auth or (
+            storage.custom_domain and not storage.cloudfront_signer
+        ):
+            return Response(
+                {"detail": "Private video streaming is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        try:
+            stream_url = storage.url(stored_file.name, expire=VIDEO_URL_TTL_SECONDS)
+        except (BotoCoreError, ClientError, ValueError):
+            return Response(
+                {"detail": "Could not prepare this video for playback."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if not settings.DEBUG and urlsplit(stream_url).scheme != "https":
+            return Response(
+                {"detail": "Private video streaming requires HTTPS."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        expires_in = VIDEO_URL_TTL_SECONDS
+    else:
+        if not storage.exists(stored_file.name):
+            raise Http404("Document file not found.")
+        stream_url = reverse("preview-document", args=[document.pk])
+
+    if request.query_params.get("redirect") == "1":
+        response = HttpResponseRedirect(stream_url)
+        response["Cache-Control"] = "private, no-store"
+        return response
+    return Response(
+        {"url": stream_url, "expires_in": expires_in},
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
+def _byte_range(header, size):
+    if not header:
+        return None
+    match = re.fullmatch(r"bytes=(\d*)-(\d*)", header.strip())
+    if not match or size <= 0:
+        raise InvalidRange
+    first, last = match.groups()
+    try:
+        start = int(first) if first else None
+        end = int(last) if last else None
+    except ValueError as exc:
+        raise InvalidRange from exc
+    if start is not None:
+        end = end if end is not None else size - 1
+        if start >= size or end < start:
+            raise InvalidRange
+        return start, min(end, size - 1)
+    if end is None or end <= 0:
+        raise InvalidRange
+    return max(0, size - end), size - 1
+
+
+def _stream_range(stored_file, remaining):
+    try:
+        while remaining:
+            chunk = stored_file.read(min(1024 * 1024, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+    finally:
+        stored_file.close()
+
+
+def _set_preview_headers(response, filename):
+    response["Cache-Control"] = "private, no-store"
+    response["Content-Disposition"] = content_disposition_header(False, filename)
+    response["X-Content-Type-Options"] = "nosniff"
+    response["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
+
+@api_view(["GET", "HEAD"])
+@permission_classes([IsAdminUser])
+def document_preview(request, document_id):
+    document = get_object_or_404(SubmissionDocument, pk=document_id)
+    kind = preview_kind(document)
+    if not kind:
+        return Response(
+            {"detail": "A preview is not available for this file. Download it to view it."},
+            status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
+
+    stored_file = document.file
+    if kind == "video" and isinstance(stored_file.storage, S3Storage) and request.method == "GET":
+        response = HttpResponseRedirect(
+            f'{reverse("video-stream-access", args=[document.pk])}?redirect=1'
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
+    if not stored_file.name or not stored_file.storage.exists(stored_file.name):
+        raise Http404("Document file not found.")
+    filename = Path(document.original_filename or stored_file.name).name
+    content_type = preview_content_type(document)
+    suffix = document_suffix(document)
+
+    if kind in {"text", "document"} or suffix in {".tif", ".tiff"}:
+        size_limit = (
+            MAX_TEXT_PREVIEW_BYTES if kind == "text"
+            else MAX_DOCUMENT_PREVIEW_BYTES if kind == "document"
+            else MAX_TIFF_PREVIEW_BYTES
+        )
+        if stored_file.size > size_limit:
+            return Response(
+                {"detail": "This file is too large to preview. Download it to view it."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        if request.method == "HEAD":
+            return _set_preview_headers(HttpResponse(content_type=content_type), filename)
+        try:
+            if kind == "text":
+                content = read_text_preview(stored_file)
+            elif kind == "document":
+                content = read_document_preview(stored_file, suffix)
+            else:
+                content = render_tiff_preview(stored_file)
+        except PreviewUnavailable as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except OSError as exc:
+            raise Http404("Document file not found.") from exc
+        return _set_preview_headers(HttpResponse(content, content_type=content_type), filename)
+
+    size = stored_file.size
+    try:
+        byte_range = _byte_range(request.headers.get("Range"), size)
+    except InvalidRange:
+        response = HttpResponse(status=416)
+        response["Content-Range"] = f"bytes */{size}"
+        response["Accept-Ranges"] = "bytes"
+        return _set_preview_headers(response, filename)
+
+    start, end = byte_range or (0, size - 1)
+    length = max(0, end - start + 1)
+    response_status = 206 if byte_range else 200
+    if request.method == "HEAD":
+        response = HttpResponse(status=response_status, content_type=content_type)
+    else:
+        try:
+            stored_file.open("rb")
+            stored_file.seek(start)
+        except (OSError, ValueError) as exc:
+            stored_file.close()
+            raise Http404("Document file not found.") from exc
+        response = StreamingHttpResponse(
+            _stream_range(stored_file, length),
+            status=response_status,
+            content_type=content_type,
+        )
+    response["Content-Length"] = str(length)
+    response["Accept-Ranges"] = "bytes"
+    if byte_range:
+        response["Content-Range"] = f"bytes {start}-{end}/{size}"
+    return _set_preview_headers(response, filename)

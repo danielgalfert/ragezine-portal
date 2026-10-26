@@ -32,12 +32,20 @@ ALLOWED_HOSTS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
 ] if DEBUG else []
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
 ] if DEBUG else []
 CSRF_TRUSTED_ORIGINS.extend(
     origin.strip()
@@ -202,10 +210,16 @@ STORAGES = {
 
 if STORAGE_BACKEND == "s3":
     AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "")
-    AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "")
+    AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "")
+    AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "") or (
+        f"https://s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+        if AWS_S3_REGION_NAME else ""
+    )
+    AWS_S3_ADDRESSING_STYLE = os.getenv("AWS_S3_ADDRESSING_STYLE", "") or (
+        "virtual" if AWS_S3_ENDPOINT_URL.endswith(".amazonaws.com") else None
+    )
     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
-    AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "")
     AWS_QUERYSTRING_AUTH = os.getenv("AWS_QUERYSTRING_AUTH", "1") in {"1", "true", "True"}
     AWS_DEFAULT_ACL = None
 
@@ -215,10 +229,12 @@ if STORAGE_BACKEND == "s3":
             "bucket_name": AWS_STORAGE_BUCKET_NAME,
             "endpoint_url": AWS_S3_ENDPOINT_URL or None,
             "region_name": AWS_S3_REGION_NAME or None,
+            "addressing_style": AWS_S3_ADDRESSING_STYLE,
             "access_key": AWS_ACCESS_KEY_ID or None,
             "secret_key": AWS_SECRET_ACCESS_KEY or None,
             "querystring_auth": AWS_QUERYSTRING_AUTH,
             "default_acl": AWS_DEFAULT_ACL,
+            "object_parameters": {"CacheControl": "private, no-store"},
         },
     }
 

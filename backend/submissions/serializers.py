@@ -4,7 +4,8 @@ from django.conf import settings
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Submission, SubmissionDocument
+from .models import Submission, SubmissionComment, SubmissionDocument
+from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
@@ -46,11 +47,21 @@ def is_valid_country_code(code):
 
 class SubmissionDocumentSerializer(serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
+    preview_kind = serializers.SerializerMethodField()
+    preview_url = serializers.SerializerMethodField()
 
     def get_download_url(self, obj):
         url = reverse("downloads-document", args=[obj.pk])
         request = self.context.get("request")
         return request.build_absolute_uri(url) if request else url
+
+    def get_preview_kind(self, obj):
+        return get_preview_kind(obj)
+
+    def get_preview_url(self, obj):
+        if not get_preview_kind(obj):
+            return None
+        return reverse("preview-document", args=[obj.pk])
 
     class Meta:
         model = SubmissionDocument
@@ -58,6 +69,8 @@ class SubmissionDocumentSerializer(serializers.ModelSerializer):
             "id",
             "document_type",
             "download_url",
+            "preview_kind",
+            "preview_url",
             "original_filename",
             "content_type",
             "size",
@@ -65,13 +78,30 @@ class SubmissionDocumentSerializer(serializers.ModelSerializer):
         ]
 
 
+class SubmissionCommentSerializer(serializers.ModelSerializer):
+    body = serializers.CharField(max_length=4000, trim_whitespace=True)
+
+    class Meta:
+        model = SubmissionComment
+        fields = ["id", "body", "author_name", "created_at"]
+        read_only_fields = ["id", "author_name", "created_at"]
+
+    def validate_body(self, value):
+        value = sanitize_multiline(value)
+        if not value:
+            raise serializers.ValidationError("Enter a comment.")
+        return value
+
+
 class SubmissionSerializer(serializers.ModelSerializer):
+    volume = serializers.IntegerField(read_only=True)
     email = serializers.EmailField(required=True, allow_blank=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     short_bio = serializers.CharField(max_length=4000)
     country_origin = serializers.CharField(max_length=2)
 
     countries_residence_names = serializers.SerializerMethodField()
+    country_origin_name = serializers.SerializerMethodField()
     countries_residence = serializers.ListField(
         child=serializers.CharField(max_length=2),
         required=False,
@@ -88,12 +118,14 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "year",
             "description",
             "submission_type",
+            "volume",
             "artist_name",
             "pronouns",
             "short_bio",
             "socials",
             "email",
             "country_origin",
+            "country_origin_name",
             "countries_residence",
             "countries_residence_names",
             "language",
@@ -104,6 +136,9 @@ class SubmissionSerializer(serializers.ModelSerializer):
         ]
     def get_countries_residence_names(self, obj):
         return [country_name(code) for code in obj.countries_residence]
+
+    def get_country_origin_name(self, obj):
+        return country_name(obj.country_origin)
 
     def validate_title(self, value):
         value = sanitize_single_line(value)

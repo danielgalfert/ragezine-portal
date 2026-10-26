@@ -122,7 +122,7 @@
 .dashboard-list-head,
 .dashboard-row {
   display: grid;
-  grid-template-columns: 64px 112px minmax(110px, 0.9fr) minmax(240px, 2fr) minmax(100px, 0.8fr) minmax(180px, 1.3fr) minmax(160px, 1.2fr) 156px;
+  grid-template-columns: 64px 112px minmax(110px, 0.9fr) minmax(240px, 2fr) minmax(100px, 0.8fr) minmax(180px, 1.3fr) minmax(160px, 1.2fr) 236px;
   gap: 14px;
   align-items: start;
 }
@@ -212,7 +212,16 @@
 .dashboard-row-action {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.dashboard-details-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  text-decoration: none;
 }
 
 .dashboard-delete-button {
