@@ -135,3 +135,43 @@ class SubmissionComment(models.Model):
 
     def __str__(self):
         return f"Comment on submission {self.submission_id} by {self.author_name}"
+
+
+class SubmissionVote(models.Model):
+    class Choice(models.TextChoices):
+        YES = "yes", "Yes"
+        NO = "no", "No"
+        SEE_COMMENT = "see_comment", "See comment"
+
+    submission = models.ForeignKey(
+        Submission, on_delete=models.CASCADE, related_name="votes"
+    )
+    voter = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="submission_votes",
+    )
+    choice = models.CharField(max_length=16, choices=Choice.choices)
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["voter__username", "voter_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["submission", "voter"],
+                name="one_vote_per_submission_account",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(choice="see_comment") & ~models.Q(comment="")
+                ) | (
+                    models.Q(choice__in=["yes", "no"]) & models.Q(comment="")
+                ),
+                name="submission_vote_comment_matches_choice",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.voter_id}: {self.choice} on submission {self.submission_id}"

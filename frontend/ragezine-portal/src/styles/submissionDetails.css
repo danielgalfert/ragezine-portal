@@ -191,6 +191,97 @@
   overflow-wrap: anywhere;
 }
 
+.details-vote-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.details-vote-counts span {
+  padding: 8px 12px;
+  border: 1px solid rgba(5, 3, 8, .18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .55);
+}
+
+.details-voting form {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.details-voting fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.details-voting legend {
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.details-vote-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+
+.details-vote-comment {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 680px);
+}
+
+.details-vote-comment textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 12px;
+  border: 1px solid rgba(5, 3, 8, .3);
+  border-radius: 10px;
+  background: #fff;
+  color: #180d1b;
+  resize: vertical;
+}
+
+.details-voter-list {
+  margin-top: 28px;
+}
+
+.details-voter-list h3 {
+  margin-bottom: 4px;
+}
+
+.details-voter {
+  padding: 14px 0;
+  border-top: 1px solid rgba(5, 3, 8, .15);
+}
+
+.details-voter div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.details-voter time {
+  display: block;
+  margin-top: 4px;
+  font-size: .85rem;
+  color: #65466b;
+}
+
+.details-voter p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .details-comments form {
   display: grid;
   gap: 10px;
