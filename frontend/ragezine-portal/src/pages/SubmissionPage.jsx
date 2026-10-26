@@ -284,8 +284,7 @@ export default function SubmissionPage() {
           <div className="submit-intro">
             <h2>Submit</h2>
             <p>
-              Use the form to send text, visual work, or both. The styling here now
-              follows the reference site instead of the previous dark app theme.
+              Use the form to send text, visual work, or both.
             </p>
 
             <div className="submission-content">
@@ -300,7 +299,7 @@ export default function SubmissionPage() {
               <div className="guideline-card">
                 <p>
                   <span className="sub">Format:</span><br />
-                  Text: Word or Google Docs export (max. {MAX_WORDS_TEXT} words)<br />
+                  Text: Word or PDF (max. {MAX_WORDS_TEXT} words)<br />
                   Visuals: TIFF and 300 dpi; video: MP4, MOV, or WebM (max. {MAX_VISUALS} files)
                 </p>
               </div>
@@ -424,7 +423,7 @@ export default function SubmissionPage() {
 
               <hr className="hr" />
 
-              <FormField label="Text upload (Word / Google Docs export)">
+              <FormField label="Text upload (Word / PDF)">
                 <input ref={textFileInputRef} className="portal-file" type="file" accept=".doc,.docx,.pdf,.txt,.rtf,.odt,.md,.pages" multiple onChange={(e) => onPickTextFiles(e.target.files)} />
                 <div className="portal-help">
                   Max {MAX_WORDS_TEXT} words.
