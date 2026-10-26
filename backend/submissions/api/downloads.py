@@ -37,6 +37,7 @@ EXCEL_COLUMN_CONFIG = [
     ("countries_residence", "Countries Residence"),
     ("language", "Language"),
     ("created_at", "Created At"),
+    ("tags", "Tags"),
 ]
 WIDE_TEXT_FIELDS = {"description", "short_bio"}
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n", "\x00", "＝", "＋", "－", "＠")
@@ -104,7 +105,10 @@ def _format_excel_field(submission, field_name):
         return ", ".join(country_name(code) for code in submission.countries_residence)
     if field_name == "created_at":
         return submission.created_at.replace(tzinfo=None)
-    value = getattr(submission, field_name)
+    if field_name == "tags":
+        value = ", ".join(tag.name for tag in submission.tags.all())
+    else:
+        value = getattr(submission, field_name)
     if isinstance(value, str) and value.lstrip().startswith(FORMULA_PREFIXES):
         return "'" + value
     return value
