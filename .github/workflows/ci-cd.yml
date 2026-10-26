@@ -74,6 +74,8 @@ jobs:
         working-directory: frontend/ragezine-portal
       - run: npm run lint
         working-directory: frontend/ragezine-portal
+      - run: npm test
+        working-directory: frontend/ragezine-portal
       - run: npm run build
         working-directory: frontend/ragezine-portal
       - run: |

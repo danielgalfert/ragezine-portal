@@ -16,6 +16,16 @@ def submission_document_upload_path(instance, filename):
     return f"submissions/{folder}/{instance.submission_id}/{uuid4().hex}-{filename}"
 
 
+class Tag(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Submission(models.Model):
     class SubmissionType(models.TextChoices):
         POETRY = "poetry", "Poetry"
@@ -46,6 +56,7 @@ class Submission(models.Model):
 
     language = models.CharField(max_length=64, default="English")
     allow_translation = models.BooleanField(default=False)
+    tags = models.ManyToManyField(Tag, blank=True, related_name="submissions")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
