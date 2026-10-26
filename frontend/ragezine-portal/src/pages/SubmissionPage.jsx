@@ -382,7 +382,7 @@ export default function SubmissionPage() {
                 </div>
               </FormField>
 
-              <div className="portal-grid">
+              <div className="portal-grid portal-grid-socials">
                 <FormField label="Socials and/or website (if relevant)">
                   <div className="portal-inline-entry">
                     <input
