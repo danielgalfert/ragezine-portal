@@ -302,7 +302,7 @@ export default function SubmissionDetailsPage() {
               </section>
 
               <section className="details-card details-tags" aria-labelledby="tags-heading">
-                <h2 id="tags-heading">Staff tags</h2>
+                <h2 id="tags-heading">Tags</h2>
                 <div className="details-tag-list">
                   {!submission.tags?.length && <p>No tags yet.</p>}
                   {submission.tags?.map((tag) => (

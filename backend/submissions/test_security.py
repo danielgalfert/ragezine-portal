@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from submissions.models import Submission, SubmissionVote
+from submissions.models import Submission, SubmissionVote, Tag
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
@@ -158,6 +158,7 @@ class StaffInputSecurityTests(TestCase):
             countries_residence=["DK"],
             email="artist@example.com",
         )
+        submission.tags.add(Tag.objects.create(name="-formula-like-tag"))
         reviewer = get_user_model().objects.create_user(
             username="reviewer", password="S3cretPass123", is_staff=True
         )
@@ -178,6 +179,8 @@ class StaffInputSecurityTests(TestCase):
         self.assertTrue(sheet["B2"].value.startswith("'="))
         self.assertEqual(sheet["F2"].data_type, "s")
         self.assertTrue(sheet["F2"].value.startswith("'+"))
+        self.assertEqual(sheet["O2"].data_type, "s")
+        self.assertEqual(sheet["O2"].value, "'-formula-like-tag")
         votes_sheet = workbook["Votes"]
         self.assertEqual(votes_sheet["B2"].data_type, "s")
         self.assertTrue(votes_sheet["B2"].value.startswith("'="))

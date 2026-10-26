@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
-from submissions.models import Submission, SubmissionDocument, SubmissionVote
+from submissions.models import Submission, SubmissionDocument, SubmissionVote, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
@@ -505,6 +505,7 @@ class SubmissionDownloadsTests(TestCase):
             language="English",
             allow_translation=False,
         )
+        submission.tags.add(Tag.objects.create(name="for review"), Tag.objects.create(name="selected"))
         other_reviewer = get_user_model().objects.create_user(
             username="other-reviewer", password="S3cretPass123", is_staff=True
         )
@@ -549,6 +550,7 @@ class SubmissionDownloadsTests(TestCase):
             "Countries Residence",
             "Language",
             "Created At",
+            "Tags",
             "Yes Votes",
             "No Votes",
             "See Comment Votes",
@@ -563,7 +565,8 @@ class SubmissionDownloadsTests(TestCase):
         self.assertEqual(submission_row[9], "artist.two@example.com")
         self.assertEqual(submission_row[10], "Denmark")
         self.assertEqual(submission_row[11], "Germany")
-        self.assertEqual(submission_row[14:18], [1, 0, 1, 2])
+        self.assertEqual(submission_row[14], "for review, selected")
+        self.assertEqual(submission_row[15:19], [1, 0, 1, 2])
 
         votes_sheet = workbook["Votes"]
         self.assertEqual(

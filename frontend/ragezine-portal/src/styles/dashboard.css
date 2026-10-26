@@ -116,6 +116,25 @@
   line-height: 1;
 }
 
+.dashboard-summary-button {
+  width: 100%;
+  color: #130b18;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-summary-button:hover,
+.dashboard-summary-button.is-active {
+  border-color: #65466b;
+  background: rgba(206, 189, 239, 0.78);
+}
+
+.dashboard-summary-button:focus-visible {
+  outline: 2px solid #4d2d84;
+  outline-offset: 2px;
+}
+
 .dashboard-panel {
   padding: 18px;
 }
