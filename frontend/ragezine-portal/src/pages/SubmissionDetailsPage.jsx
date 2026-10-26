@@ -295,7 +295,6 @@ export default function SubmissionDetailsPage() {
                   <Detail label="Submitted" value={formatDate(submission.created_at)} />
                   <Detail label="Updated" value={formatDate(submission.updated_at)} />
                   <Detail label="Socials" value={submission.socials} />
-                  <Detail label="English translation" value={submission.allow_translation ? "Allowed" : "Not allowed"} />
                   <Detail label="Description" value={submission.description} />
                   <Detail label="Short bio" value={submission.short_bio} />
                 </dl>
@@ -414,8 +413,7 @@ export default function SubmissionDetailsPage() {
               </section>
 
               <section className="details-card details-comments" aria-labelledby="comments-heading">
-                <h2 id="comments-heading">Staff comments</h2>
-                <p>Comments are visible to staff only.</p>
+                <h2 id="comments-heading">Comments</h2>
                 <form onSubmit={onCommentSubmit}>
                   <label htmlFor="staff-comment">Add a comment</label>
                   <textarea id="staff-comment" value={draft} maxLength={4000} onChange={(event) => setDraft(event.target.value)} rows={4} required />
