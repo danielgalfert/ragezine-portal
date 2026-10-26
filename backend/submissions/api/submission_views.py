@@ -107,11 +107,16 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
         serializer = SubmissionVoteInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        vote, created = SubmissionVote.objects.update_or_create(
-            submission=submission,
-            voter=request.user,
-            defaults={"choice": serializer.validated_data["choice"]},
-        )
+        choice = serializer.validated_data["choice"]
+        with transaction.atomic():
+            vote, created = SubmissionVote.objects.select_for_update().get_or_create(
+                submission=submission,
+                voter=request.user,
+                defaults={"choice": choice},
+            )
+            if not created and vote.choice != choice:
+                vote.choice = choice
+                vote.save(update_fields=["choice", "updated_at"])
 
         return Response(
             self._vote_state(submission, request.user),

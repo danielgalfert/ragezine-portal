@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -45,10 +48,17 @@ class SubmissionVotingTests(TestCase):
         self.assertEqual(first.data["counts"]["yes"], 1)
         self.assertEqual(first.data["my_vote"]["voter_name"], "alex")
 
+        old_time = timezone.now() - timedelta(days=1)
+        SubmissionVote.objects.filter(voter=self.alex).update(updated_at=old_time)
+        unchanged = self.client.post(self.votes_url, {"choice": "yes"}, format="json")
+        self.assertEqual(unchanged.status_code, 200)
+        self.assertEqual(SubmissionVote.objects.get().updated_at, old_time)
+
         changed = self.client.post(self.votes_url, {"choice": "no"}, format="json")
         self.assertEqual(changed.status_code, 200)
         self.assertEqual(changed.data["counts"]["yes"], 0)
         self.assertEqual(changed.data["counts"]["no"], 1)
+        self.assertGreater(SubmissionVote.objects.get().updated_at, old_time)
         self.assertEqual(SubmissionVote.objects.count(), 1)
 
         self.client.force_authenticate(self.blair)

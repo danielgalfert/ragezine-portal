@@ -133,7 +133,6 @@ export default function SubmissionDetailsPage() {
   const [comments, setComments] = useState([]);
   const [voteState, setVoteState] = useState(null);
   const [voteError, setVoteError] = useState("");
-  const [voteMessage, setVoteMessage] = useState("");
   const [savingVote, setSavingVote] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [error, setError] = useState("");
@@ -192,14 +191,12 @@ export default function SubmissionDetailsPage() {
   }
 
   async function onVote(choice) {
-    if (savingVote) return;
+    if (savingVote || voteState?.my_vote?.choice === choice) return;
     setVoteError("");
-    setVoteMessage("");
     setSavingVote(true);
     try {
       const nextState = await saveSubmissionVote(id, choice);
       setVoteState(nextState);
-      setVoteMessage("Vote saved.");
     } catch (err) {
       setVoteError(err?.response?.data?.detail || "Could not save this vote.");
     } finally {
@@ -282,35 +279,42 @@ export default function SubmissionDetailsPage() {
 
               <section className="details-card details-voting" aria-labelledby="votes-heading">
                 <h2 id="votes-heading">Staff votes</h2>
-                <div className="details-vote-counts" aria-label="Vote counts">
-                  <span>Yes <strong>{voteState?.counts?.yes || 0}</strong></span>
-                  <span>No <strong>{voteState?.counts?.no || 0}</strong></span>
-                  <span>See comment <strong>{voteState?.counts?.see_comment || 0}</strong></span>
-                  <span>Total <strong>{voteState?.counts?.total || 0}</strong></span>
-                </div>
-                <div className="details-vote-actions" role="group" aria-label="Your vote">
-                  {[["yes", "Yes"], ["no", "No"], ["see_comment", "See comment"]].map(([choice, label]) => (
-                    <button
-                      key={choice}
-                      type="button"
-                      className={`smallBtn details-vote-button${voteState?.my_vote?.choice === choice ? " is-selected" : ""}`}
-                      onClick={() => onVote(choice)}
-                      aria-pressed={voteState?.my_vote?.choice === choice}
-                      disabled={savingVote}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                <div className="details-vote-top">
+                  <div>
+                    <h3>Your vote</h3>
+                    <div className="details-vote-actions" role="group" aria-label="Your vote">
+                      {[["yes", "Yes"], ["no", "No"], ["see_comment", "See comment"]].map(([choice, label]) => (
+                        <button
+                          key={choice}
+                          type="button"
+                          className={`smallBtn details-vote-button${voteState?.my_vote?.choice === choice ? " is-selected" : ""}`}
+                          onClick={() => onVote(choice)}
+                          aria-pressed={voteState?.my_vote?.choice === choice}
+                          disabled={savingVote}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="details-vote-summary">
+                    <h3>Vote totals</h3>
+                    <div className="details-vote-counts" aria-label="Vote counts">
+                      <span>Yes <strong>{voteState?.counts?.yes || 0}</strong></span>
+                      <span>No <strong>{voteState?.counts?.no || 0}</strong></span>
+                      <span>See comment <strong>{voteState?.counts?.see_comment || 0}</strong></span>
+                      <span>Total <strong>{voteState?.counts?.total || 0}</strong></span>
+                    </div>
+                  </div>
                 </div>
                 {voteError && <p role="alert" className="details-error">{voteError}</p>}
-                {voteMessage && <p role="status">{voteMessage}</p>}
                 <div className="details-voter-list">
                   <h3>Votes by staff</h3>
                   {!voteState?.votes?.length && <p>No votes yet.</p>}
                   {voteState?.votes?.map((vote) => (
                     <article key={vote.id} className="details-voter">
                       <div><strong>{vote.voter_name}</strong><span>{vote.choice === "see_comment" ? "See comment" : vote.choice === "yes" ? "Yes" : "No"}</span></div>
-                      <time dateTime={vote.updated_at}>{formatDate(vote.updated_at)}</time>
+                      <time dateTime={vote.updated_at}>Last changed {formatDate(vote.updated_at)}</time>
                     </article>
                   ))}
                 </div>
