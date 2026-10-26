@@ -55,6 +55,7 @@ export default function DashboardSubmissionsList() {
   const [page, setPage] = useState(1);
   const [titleQuery, setTitleQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState("");
+  const [selectedType, setSelectedType] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -93,27 +94,35 @@ export default function DashboardSubmissionsList() {
     return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [submissions]);
 
-  const filteredSubmissions = useMemo(() => {
+  const searchMatches = useMemo(() => {
     const tagged = selectedTagId
       ? submissions.filter((submission) => submission.tags?.some((tag) => String(tag.id) === selectedTagId))
       : submissions;
     return searchSubmissionsByTitle(tagged, titleQuery);
   }, [submissions, titleQuery, selectedTagId]);
 
+  const filteredSubmissions = useMemo(
+    () => selectedType
+      ? searchMatches.filter((submission) => (submission.submission_type || "other") === selectedType)
+      : searchMatches,
+    [searchMatches, selectedType],
+  );
+
   const summary = useMemo(() => {
-    const byType = filteredSubmissions.reduce((acc, submission) => {
+    const byType = searchMatches.reduce((acc, submission) => {
       const key = submission.submission_type || "other";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
 
-    return Object.entries(byType)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([type, count]) => ({
-        type: type.replaceAll("_", " "),
-        count,
+    return [...new Set(submissions.map((submission) => submission.submission_type || "other"))]
+      .sort((a, b) => a.localeCompare(b))
+      .map((type) => ({
+        type,
+        label: type.replaceAll("_", " "),
+        count: byType[type] || 0,
       }));
-  }, [filteredSubmissions]);
+  }, [submissions, searchMatches]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / PAGE_SIZE));
   const visibleSubmissions = useMemo(() => {
@@ -201,13 +210,22 @@ export default function DashboardSubmissionsList() {
           <div className="dashboard-summary">
             <div className="dashboard-summary-card">
               <span className="dashboard-summary-label">{titleQuery.trim() || selectedTagId ? "results" : "total"}</span>
-              <strong>{filteredSubmissions.length}</strong>
+              <strong>{searchMatches.length}</strong>
             </div>
             {summary.map((item) => (
-              <div key={item.type} className="dashboard-summary-card">
-                <span className="dashboard-summary-label">{item.type}</span>
+              <button
+                key={item.type}
+                type="button"
+                className={`dashboard-summary-card dashboard-summary-button${selectedType === item.type ? " is-active" : ""}`}
+                aria-pressed={selectedType === item.type}
+                onClick={() => {
+                  setSelectedType((current) => current === item.type ? "" : item.type);
+                  setPage(1);
+                }}
+              >
+                <span className="dashboard-summary-label">{item.label}</span>
                 <strong>{item.count}</strong>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -247,7 +265,7 @@ export default function DashboardSubmissionsList() {
             <div className="dashboard-toolbar">
               <p className="dashboard-range" role="status">
                 Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of {filteredSubmissions.length}
-                {(titleQuery.trim() || selectedTagId) && ` results (${submissions.length} total)`}
+                {(titleQuery.trim() || selectedTagId || selectedType) && ` results (${submissions.length} total)`}
               </p>
               <div className="dashboard-pagination">
                 <button
