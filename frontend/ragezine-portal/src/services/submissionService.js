@@ -19,6 +19,22 @@ export async function getSubmissionById(id) {
   return response.data;
 }
 
+export async function getTags() {
+  const response = await client.get("/tags/");
+  return response.data;
+}
+
+export async function addSubmissionTag(id, name) {
+  await getCsrfCookie();
+  const response = await client.post(`/submissions/${id}/tags/`, { name });
+  return response.data;
+}
+
+export async function removeSubmissionTag(id, tagId) {
+  await getCsrfCookie();
+  await client.delete(`/submissions/${id}/tags/${tagId}/`);
+}
+
 export async function getSubmissionComments(id) {
   const response = await client.get(`/submissions/${id}/comments/`);
   return response.data;

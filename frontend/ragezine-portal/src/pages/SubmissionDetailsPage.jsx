@@ -4,11 +4,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { getSession, logoutUser } from "../services/authService";
 import {
   addSubmissionComment,
+  addSubmissionTag,
   getSubmissionById,
   getSubmissionComments,
   getSubmissionPreviewText,
   getSubmissionPreviewUrl,
+  getTags,
   getVideoStreamAccess,
+  removeSubmissionTag,
 } from "../services/submissionService";
 import "../styles/dashboard.css";
 import "../styles/nav.css";
@@ -134,6 +137,11 @@ export default function SubmissionDetailsPage() {
   const [commentError, setCommentError] = useState("");
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [tagDraft, setTagDraft] = useState("");
+  const [tagError, setTagError] = useState("");
+  const [savingTag, setSavingTag] = useState(false);
+  const [removingTagId, setRemovingTagId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -144,10 +152,15 @@ export default function SubmissionDetailsPage() {
           navigate("/login", { replace: true });
           return;
         }
-        const [details, notes] = await Promise.all([getSubmissionById(id), getSubmissionComments(id)]);
+        const [details, notes, tags] = await Promise.all([
+          getSubmissionById(id),
+          getSubmissionComments(id),
+          getTags().catch(() => []),
+        ]);
         if (!active) return;
         setSubmission(details);
         setComments(Array.isArray(notes) ? notes : notes.results || []);
+        setAvailableTags(Array.isArray(tags) ? tags : tags.results || []);
         setSelectedFileId(details.documents?.[0]?.id ?? null);
       } catch (err) {
         if (active) setError(err?.response?.status === 404 ? "Submission not found." : "Could not load this submission.");
@@ -177,6 +190,46 @@ export default function SubmissionDetailsPage() {
       setCommentError(err?.response?.data?.body?.[0] || "Could not save this comment.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onTagSubmit(event) {
+    event.preventDefault();
+    if (!tagDraft.trim() || savingTag) return;
+    setSavingTag(true);
+    setTagError("");
+    try {
+      const tag = await addSubmissionTag(id, tagDraft);
+      setSubmission((current) => ({
+        ...current,
+        tags: current.tags?.some((item) => item.id === tag.id)
+          ? current.tags
+          : [...(current.tags || []), tag].sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+      setAvailableTags((current) => current.some((item) => item.id === tag.id)
+        ? current
+        : [...current, tag].sort((a, b) => a.name.localeCompare(b.name)));
+      setTagDraft("");
+    } catch (err) {
+      setTagError(err?.response?.data?.name?.[0] || "Could not add this tag.");
+    } finally {
+      setSavingTag(false);
+    }
+  }
+
+  async function onTagRemove(tagId) {
+    setRemovingTagId(tagId);
+    setTagError("");
+    try {
+      await removeSubmissionTag(id, tagId);
+      setSubmission((current) => ({
+        ...current,
+        tags: current.tags.filter((tag) => tag.id !== tagId),
+      }));
+    } catch {
+      setTagError("Could not remove this tag.");
+    } finally {
+      setRemovingTagId(null);
     }
   }
 
@@ -222,6 +275,46 @@ export default function SubmissionDetailsPage() {
                   <Detail label="Description" value={submission.description} />
                   <Detail label="Short bio" value={submission.short_bio} />
                 </dl>
+              </section>
+
+              <section className="details-card details-tags" aria-labelledby="tags-heading">
+                <h2 id="tags-heading">Staff tags</h2>
+                <div className="details-tag-list">
+                  {!submission.tags?.length && <p>No tags yet.</p>}
+                  {submission.tags?.map((tag) => (
+                    <span key={tag.id} className="details-tag">
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => onTagRemove(tag.id)}
+                        disabled={removingTagId === tag.id}
+                        aria-label={`Remove ${tag.name} tag`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <form onSubmit={onTagSubmit}>
+                  <label htmlFor="submission-tag">Choose an existing tag or create a new one</label>
+                  <div className="details-tag-controls">
+                    <input
+                      id="submission-tag"
+                      list="existing-submission-tags"
+                      value={tagDraft}
+                      onChange={(event) => setTagDraft(event.target.value)}
+                      maxLength={50}
+                      required
+                    />
+                    <datalist id="existing-submission-tags">
+                      {availableTags.map((tag) => <option key={tag.id} value={tag.name} />)}
+                    </datalist>
+                    <button type="submit" className="smallBtn" disabled={savingTag || !tagDraft.trim()}>
+                      {savingTag ? "saving..." : "add tag"}
+                    </button>
+                  </div>
+                  {tagError && <p role="alert" className="details-error">{tagError}</p>}
+                </form>
               </section>
 
               <section className="details-card" aria-labelledby="files-heading">
