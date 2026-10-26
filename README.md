@@ -56,6 +56,7 @@ files show a smaller PNG. Older DOC files and any file that cannot be rendered
 safely offer the original download instead. Preview responses are private and
 are not cached. Staff voting sits between Files and Staff comments. Each
 staff account can choose Yes, No, or See comment and can change that choice.
+No vote is the default and removes that account's vote from the totals.
 See comment only records a vote; staff comments remain separate. Apply Django
 migrations through `0010` when deploying this branch.
 

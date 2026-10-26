@@ -104,6 +104,31 @@ class SubmissionVotingTests(TestCase):
         self.assertEqual(SubmissionVote.objects.count(), 1)
         self.assertFalse(SubmissionComment.objects.exists())
 
+    def test_no_vote_deletes_only_the_current_account_vote(self):
+        self.client.post(self.votes_url, {"choice": "yes"}, format="json")
+        self.client.force_authenticate(self.blair)
+        self.client.post(self.votes_url, {"choice": "no"}, format="json")
+        self.client.force_authenticate(self.alex)
+
+        cleared = self.client.delete(self.votes_url)
+        self.assertEqual(cleared.status_code, 200)
+        self.assertIsNone(cleared.data["my_vote"])
+        self.assertEqual(
+            cleared.data["counts"],
+            {"yes": 0, "no": 1, "see_comment": 0, "total": 1},
+        )
+        self.assertEqual(
+            [(vote["voter_name"], vote["choice"]) for vote in cleared.data["votes"]],
+            [("blair", "no")],
+        )
+        self.assertFalse(SubmissionVote.objects.filter(voter=self.alex).exists())
+        self.assertTrue(SubmissionVote.objects.filter(voter=self.blair).exists())
+
+        repeated = self.client.delete(self.votes_url)
+        self.assertEqual(repeated.status_code, 200)
+        self.assertEqual(repeated.data["counts"], cleared.data["counts"])
+        self.assertEqual(SubmissionVote.objects.count(), 1)
+
     def test_votes_are_staff_only(self):
         for user in (None, self.reader):
             visitor = APIClient()
@@ -117,6 +142,7 @@ class SubmissionVotingTests(TestCase):
                     ).status_code,
                     403,
                 )
+                self.assertEqual(visitor.delete(self.votes_url).status_code, 403)
         self.assertFalse(SubmissionVote.objects.exists())
 
     def test_invalid_choice_does_not_create_a_vote(self):

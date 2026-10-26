@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { getSession, logoutUser } from "../services/authService";
 import {
   addSubmissionComment,
+  clearSubmissionVote,
   getSubmissionById,
   getSubmissionComments,
   getSubmissionVotes,
@@ -191,11 +192,13 @@ export default function SubmissionDetailsPage() {
   }
 
   async function onVote(choice) {
-    if (savingVote || voteState?.my_vote?.choice === choice) return;
+    if (savingVote || (voteState?.my_vote?.choice || "none") === choice) return;
     setVoteError("");
     setSavingVote(true);
     try {
-      const nextState = await saveSubmissionVote(id, choice);
+      const nextState = choice === "none"
+        ? await clearSubmissionVote(id)
+        : await saveSubmissionVote(id, choice);
       setVoteState(nextState);
     } catch (err) {
       setVoteError(err?.response?.data?.detail || "Could not save this vote.");
@@ -278,18 +281,18 @@ export default function SubmissionDetailsPage() {
               </section>
 
               <section className="details-card details-voting" aria-labelledby="votes-heading">
-                <h2 id="votes-heading">Staff votes</h2>
+                <h2 id="votes-heading">Votes</h2>
                 <div className="details-vote-top">
                   <div>
                     <h3>Your vote</h3>
                     <div className="details-vote-actions" role="group" aria-label="Your vote">
-                      {[["yes", "Yes"], ["no", "No"], ["see_comment", "See comment"]].map(([choice, label]) => (
+                      {[["none", "No vote"], ["yes", "Yes"], ["no", "No"], ["see_comment", "See comment"]].map(([choice, label]) => (
                         <button
                           key={choice}
                           type="button"
-                          className={`smallBtn details-vote-button${voteState?.my_vote?.choice === choice ? " is-selected" : ""}`}
+                          className={`smallBtn details-vote-button${(voteState?.my_vote?.choice || "none") === choice ? " is-selected" : ""}`}
                           onClick={() => onVote(choice)}
-                          aria-pressed={voteState?.my_vote?.choice === choice}
+                          aria-pressed={(voteState?.my_vote?.choice || "none") === choice}
                           disabled={savingVote}
                         >
                           {label}
