@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from submissions.models import Submission
+from submissions.models import Submission, SubmissionVote
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
@@ -148,7 +148,7 @@ class StaffInputSecurityTests(TestCase):
         self.assertEqual(accepted.status_code, 200)
 
     def test_excel_export_keeps_attacker_text_as_text(self):
-        Submission.objects.create(
+        submission = Submission.objects.create(
             title='=HYPERLINK("https://example.com", "click")',
             submission_type="poetry",
             artist_name="+cmd|'/C calc'!A0",
@@ -158,18 +158,31 @@ class StaffInputSecurityTests(TestCase):
             countries_residence=["DK"],
             email="artist@example.com",
         )
-        client = APIClient()
-        client.force_authenticate(get_user_model().objects.create_user(
+        reviewer = get_user_model().objects.create_user(
             username="reviewer", password="S3cretPass123", is_staff=True
-        ))
+        )
+        voter = get_user_model().objects.create_user(
+            username="@other-reviewer", password="S3cretPass123", is_staff=True
+        )
+        SubmissionVote.objects.create(
+            submission=submission, voter=voter, choice=SubmissionVote.Choice.YES
+        )
+        client = APIClient()
+        client.force_authenticate(reviewer)
 
         response = client.get("/api/downloads/excel/")
-        sheet = load_workbook(BytesIO(response.content))["Poetry"]
+        workbook = load_workbook(BytesIO(response.content))
+        sheet = workbook["Poetry"]
 
         self.assertEqual(sheet["B2"].data_type, "s")
         self.assertTrue(sheet["B2"].value.startswith("'="))
         self.assertEqual(sheet["F2"].data_type, "s")
         self.assertTrue(sheet["F2"].value.startswith("'+"))
+        votes_sheet = workbook["Votes"]
+        self.assertEqual(votes_sheet["B2"].data_type, "s")
+        self.assertTrue(votes_sheet["B2"].value.startswith("'="))
+        self.assertEqual(votes_sheet["D2"].data_type, "s")
+        self.assertTrue(votes_sheet["D2"].value.startswith("'@"))
 
     def test_archive_export_handles_path_like_artist_name(self):
         submission = Submission.objects.create(

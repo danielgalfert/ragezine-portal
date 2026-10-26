@@ -1,12 +1,14 @@
+from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from shutil import copyfileobj
 from tempfile import TemporaryFile
 from zipfile import ZIP_STORED, ZipFile
 
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import SuspiciousFileOperation
+from django.db.models import Prefetch
 from django.http import FileResponse, Http404, HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils.text import get_valid_filename
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
@@ -14,7 +16,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.permissions import IsAdminUser
 
 from submissions.api.throttles import StaffExportThrottle
-from submissions.models import Submission, SubmissionDocument
+from submissions.models import Submission, SubmissionDocument, SubmissionVote
 from submissions.repositories import SubmissionRepository
 from submissions.serializers import country_name
 from submissions.utils import sanitize_single_line
@@ -37,8 +39,17 @@ EXCEL_COLUMN_CONFIG = [
     ("countries_residence", "Countries Residence"),
     ("language", "Language"),
     ("created_at", "Created At"),
+    ("vote_yes", "Yes Votes"),
+    ("vote_no", "No Votes"),
+    ("vote_see_comment", "See Comment Votes"),
+    ("vote_total", "Total Votes"),
 ]
 WIDE_TEXT_FIELDS = {"description", "short_bio"}
+VOTE_COLUMN_CHOICES = {
+    "vote_yes": SubmissionVote.Choice.YES,
+    "vote_no": SubmissionVote.Choice.NO,
+    "vote_see_comment": SubmissionVote.Choice.SEE_COMMENT,
+}
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n", "\x00", "＝", "＋", "－", "＠")
 submission_repository = SubmissionRepository()
 
@@ -95,7 +106,17 @@ def _format_submission_details(submission):
     return "\n".join(lines) + "\n"
 
 
-def _format_excel_field(submission, field_name):
+def _safe_excel_text(value):
+    if isinstance(value, str) and value.lstrip().startswith(FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
+def _format_excel_field(submission, field_name, vote_counts):
+    if field_name in VOTE_COLUMN_CHOICES:
+        return vote_counts[VOTE_COLUMN_CHOICES[field_name]]
+    if field_name == "vote_total":
+        return sum(vote_counts.values())
     if field_name == "submission_type":
         return submission.get_submission_type_display()
     if field_name == "country_origin":
@@ -104,10 +125,7 @@ def _format_excel_field(submission, field_name):
         return ", ".join(country_name(code) for code in submission.countries_residence)
     if field_name == "created_at":
         return submission.created_at.replace(tzinfo=None)
-    value = getattr(submission, field_name)
-    if isinstance(value, str) and value.lstrip().startswith(FORMULA_PREFIXES):
-        return "'" + value
-    return value
+    return _safe_excel_text(getattr(submission, field_name))
 
 
 def _resolve_excel_filename(submissions):
@@ -141,7 +159,17 @@ def _autosize_worksheet(worksheet):
 
 
 def _build_excel_workbook():
-    submissions = list(submission_repository.list())
+    submissions = list(
+        submission_repository.list().prefetch_related(
+            Prefetch(
+                "votes",
+                queryset=SubmissionVote.objects.filter(
+                    choice__in=SubmissionVote.Choice.values
+                ).select_related("voter"),
+                to_attr="export_votes",
+            )
+        )
+    )
     buffer = BytesIO()
     workbook = Workbook()
     default_sheet = workbook.active
@@ -167,8 +195,9 @@ def _build_excel_workbook():
             if submission.submission_type == submission_type.value
         ]
         for submission in type_submissions:
+            vote_counts = Counter(vote.choice for vote in submission.export_votes)
             worksheet.append([
-                _format_excel_field(submission, field_name)
+                _format_excel_field(submission, field_name, vote_counts)
                 for field_name, _ in EXCEL_COLUMN_CONFIG
             ])
 
@@ -182,6 +211,28 @@ def _build_excel_workbook():
                 worksheet.row_dimensions[row[0].row].height = 60
 
         _autosize_worksheet(worksheet)
+
+    votes_sheet = workbook.create_sheet(title="Votes")
+    votes_sheet.freeze_panes = "A2"
+    votes_sheet.append([
+        "Submission ID", "Submission Title", "Submission Type",
+        "Voter", "Vote", "Last Changed",
+    ])
+    for cell in votes_sheet[1]:
+        cell.font = Font(bold=True)
+        cell.alignment = header_alignment
+    for submission in submissions:
+        for vote in submission.export_votes:
+            votes_sheet.append([
+                submission.id,
+                _safe_excel_text(submission.title),
+                submission.get_submission_type_display(),
+                _safe_excel_text(vote.voter.get_username()),
+                vote.get_choice_display(),
+                vote.updated_at.replace(tzinfo=None),
+            ])
+    for column_letter, width in zip("ABCDEF", (16, 36, 24, 26, 18, 23)):
+        votes_sheet.column_dimensions[column_letter].width = width
 
     workbook.save(buffer)
     buffer.seek(0)
