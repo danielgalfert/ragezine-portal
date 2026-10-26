@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
-from submissions.models import Submission, SubmissionDocument
+from submissions.models import Submission, SubmissionDocument, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
@@ -490,7 +490,7 @@ class SubmissionDownloadsTests(TestCase):
                 )
 
     def test_excel_download_contains_review_sheet_and_submission_row(self):
-        Submission.objects.create(
+        submission = Submission.objects.create(
             title="Spreadsheet Piece",
             year="2026",
             description="Detailed description for spreadsheet output.",
@@ -505,6 +505,7 @@ class SubmissionDownloadsTests(TestCase):
             language="English",
             allow_translation=False,
         )
+        submission.tags.add(Tag.objects.create(name="for review"), Tag.objects.create(name="selected"))
 
         response = self.client.get("/api/downloads/excel/")
 
@@ -537,6 +538,7 @@ class SubmissionDownloadsTests(TestCase):
             "Countries Residence",
             "Language",
             "Created At",
+            "Tags",
         ]
 
         self.assertEqual(header_row, expected_headers)
@@ -547,6 +549,7 @@ class SubmissionDownloadsTests(TestCase):
         self.assertEqual(submission_row[9], "artist.two@example.com")
         self.assertEqual(submission_row[10], "Denmark")
         self.assertEqual(submission_row[11], "Germany")
+        self.assertEqual(submission_row[14], "for review, selected")
 
 
 class SubmissionEmailTests(TestCase):
