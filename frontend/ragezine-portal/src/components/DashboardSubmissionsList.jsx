@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { deleteSubmission, getSubmissions } from "../services/submissionService";
 import { downloadSubmissionArchive } from "../services/downloadService";
+import { searchSubmissionsByTitle } from "../utils/titleSearch";
 
 const PAGE_SIZE = 20;
 
@@ -52,6 +53,8 @@ export default function DashboardSubmissionsList() {
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
+  const [titleQuery, setTitleQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -82,8 +85,23 @@ export default function DashboardSubmissionsList() {
     };
   }, []);
 
+  const availableTags = useMemo(() => {
+    const tags = new Map();
+    submissions.forEach((submission) => {
+      submission.tags?.forEach((tag) => tags.set(tag.id, tag));
+    });
+    return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [submissions]);
+
+  const filteredSubmissions = useMemo(() => {
+    const tagged = selectedTagId
+      ? submissions.filter((submission) => submission.tags?.some((tag) => String(tag.id) === selectedTagId))
+      : submissions;
+    return searchSubmissionsByTitle(tagged, titleQuery);
+  }, [submissions, titleQuery, selectedTagId]);
+
   const summary = useMemo(() => {
-    const byType = submissions.reduce((acc, submission) => {
+    const byType = filteredSubmissions.reduce((acc, submission) => {
       const key = submission.submission_type || "other";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
@@ -95,13 +113,13 @@ export default function DashboardSubmissionsList() {
         type: type.replaceAll("_", " "),
         count,
       }));
-  }, [submissions]);
+  }, [filteredSubmissions]);
 
-  const totalPages = Math.max(1, Math.ceil(submissions.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / PAGE_SIZE));
   const visibleSubmissions = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return submissions.slice(start, start + PAGE_SIZE);
-  }, [page, submissions]);
+    return filteredSubmissions.slice(start, start + PAGE_SIZE);
+  }, [page, filteredSubmissions]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -111,6 +129,11 @@ export default function DashboardSubmissionsList() {
 
   function handleSubmissionDownload(submissionId) {
     downloadSubmissionArchive(submissionId);
+  }
+
+  function handleTitleQueryChange(event) {
+    setTitleQuery(event.target.value);
+    setPage(1);
   }
 
   async function handleSubmissionDelete(submission) {
@@ -133,11 +156,52 @@ export default function DashboardSubmissionsList() {
   return (
     <section className="dashboard-section" id="submissions-list">
       <div className="dashboard-shell">
+        <div className="dashboard-filters">
+          <div className="dashboard-search">
+            <label htmlFor="dashboard-title-search">search by title</label>
+            <div className="dashboard-search-controls">
+              <input
+                id="dashboard-title-search"
+                type="search"
+                value={titleQuery}
+                onChange={handleTitleQueryChange}
+                placeholder="Find a submission title"
+                autoComplete="off"
+              />
+              {titleQuery && (
+                <button
+                  type="button"
+                  className="smallBtn"
+                  onClick={() => {
+                    setTitleQuery("");
+                    setPage(1);
+                  }}
+                >
+                  clear
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="dashboard-tag-filter">
+            <label htmlFor="dashboard-tag-filter">filter by tag</label>
+            <select
+              id="dashboard-tag-filter"
+              value={selectedTagId}
+              onChange={(event) => {
+                setSelectedTagId(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">all tags</option>
+              {availableTags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+            </select>
+          </div>
+        </div>
         <div className="dashboard-header">
           <div className="dashboard-summary">
             <div className="dashboard-summary-card">
-              <span className="dashboard-summary-label">total</span>
-              <strong>{submissions.length}</strong>
+              <span className="dashboard-summary-label">{titleQuery.trim() || selectedTagId ? "results" : "total"}</span>
+              <strong>{filteredSubmissions.length}</strong>
             </div>
             {summary.map((item) => (
               <div key={item.type} className="dashboard-summary-card">
@@ -172,11 +236,18 @@ export default function DashboardSubmissionsList() {
           </div>
         )}
 
-        {!loading && !error && submissions.length > 0 && (
+        {!loading && !error && submissions.length > 0 && filteredSubmissions.length === 0 && (
+          <div className="dashboard-panel" role="status">
+            <p>No submissions match these filters.</p>
+          </div>
+        )}
+
+        {!loading && !error && filteredSubmissions.length > 0 && (
           <>
             <div className="dashboard-toolbar">
-              <p className="dashboard-range">
-                Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, submissions.length)} of {submissions.length}
+              <p className="dashboard-range" role="status">
+                Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of {filteredSubmissions.length}
+                {(titleQuery.trim() || selectedTagId) && ` results (${submissions.length} total)`}
               </p>
               <div className="dashboard-pagination">
                 <button
@@ -221,6 +292,11 @@ export default function DashboardSubmissionsList() {
                   <div className="dashboard-row-title">
                     <strong>{submission.title}</strong>
                     <p>{submission.description || submission.short_bio || "No description provided."}</p>
+                    {submission.tags?.length > 0 && (
+                      <div className="dashboard-tag-list" aria-label="Tags">
+                        {submission.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}
+                      </div>
+                    )}
                     {submission.documents?.length > 0 && (
                       <div className="dashboard-document-list">
                         {submission.documents.map((document) => (

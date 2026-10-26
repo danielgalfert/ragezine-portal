@@ -1,18 +1,31 @@
 import logging
 
 from django.db import transaction
-from rest_framework import permissions, status, viewsets
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
-from submissions.models import SubmissionDocument
+from submissions.models import SubmissionDocument, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
-from submissions.serializers import SubmissionCommentSerializer, SubmissionSerializer
+from submissions.serializers import (
+    SubmissionCommentSerializer,
+    SubmissionSerializer,
+    TagNameSerializer,
+    TagSerializer,
+)
 
 
 logger = logging.getLogger(__name__)
+MAX_TAGS_PER_SUBMISSION = 20
+
+
+class TagListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = TagSerializer
+    queryset = Tag.objects.all()
 
 
 class SubmissionViewSet(viewsets.ModelViewSet):
@@ -33,6 +46,33 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return self.submission_repository.list()
+
+    @action(detail=True, methods=["post"], url_path="tags")
+    def add_tag(self, request, pk=None):
+        submission = self.get_object()
+        serializer = TagNameSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        name = serializer.validated_data["name"]
+
+        existing = submission.tags.filter(name=name).first()
+        if existing:
+            return Response(TagSerializer(existing).data)
+        if submission.tags.count() >= MAX_TAGS_PER_SUBMISSION:
+            return Response(
+                {"name": ["A submission can have at most 20 tags."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tag, _ = Tag.objects.get_or_create(name=name)
+        submission.tags.add(tag)
+        return Response(TagSerializer(tag).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"], url_path=r"tags/(?P<tag_id>[0-9]+)")
+    def remove_tag(self, request, pk=None, tag_id=None):
+        submission = self.get_object()
+        tag = get_object_or_404(submission.tags, pk=tag_id)
+        submission.tags.remove(tag)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
