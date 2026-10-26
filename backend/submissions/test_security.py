@@ -1,9 +1,11 @@
 from io import BytesIO
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from zipfile import ZipFile
 
 from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
+from django.test import TestCase, override_settings
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
@@ -50,6 +52,36 @@ class PublicInputSecurityTests(TestCase):
             upload.content_type,
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
+
+    @override_settings(FILE_UPLOAD_MAX_MEMORY_SIZE=1024)
+    def test_video_upload_from_temporary_file(self):
+        payload = valid_payload()
+        payload.pop("text_files")
+        payload["visuals"] = SimpleUploadedFile(
+            "clip.mp4",
+            b"\x00\x00\x00\x18ftypisom" + b"x" * 4096,
+            content_type="video/mp4",
+        )
+        with TemporaryDirectory() as media_dir:
+            storage = {
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                    "OPTIONS": {"location": media_dir},
+                },
+                "staticfiles": {
+                    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+                },
+            }
+            with override_settings(STORAGES=storage), patch(
+                "submissions.serializers.validate_upload", wraps=validate_upload
+            ) as validator, patch("submissions.api.submission_views.send_submission_receipt"):
+                response = self.client.post(
+                    "/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.105"
+                )
+
+        self.assertIsInstance(validator.call_args.args[0], TemporaryUploadedFile)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Submission.objects.count(), 1)
 
     def test_rejects_html_disguised_as_pdf_without_creating_submission(self):
         payload = valid_payload()
