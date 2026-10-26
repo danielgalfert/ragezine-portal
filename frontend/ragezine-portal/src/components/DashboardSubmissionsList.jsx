@@ -210,6 +210,7 @@ export default function DashboardSubmissionsList() {
                 <span>type</span>
                 <span>email</span>
                 <span>residence</span>
+                <span>votes</span>
                 <span></span>
               </div>
 
@@ -236,6 +237,11 @@ export default function DashboardSubmissionsList() {
                   </div>
                   <div className="dashboard-row-email">{submission.email || "Missing"}</div>
                   <div className="dashboard-row-location">{getResidenceLabel(submission)}</div>
+                  <div className="dashboard-row-votes" aria-label={`Votes: ${submission.vote_counts?.yes || 0} yes, ${submission.vote_counts?.no || 0} no, ${submission.vote_counts?.see_comment || 0} see comment`}>
+                    <span>Yes {submission.vote_counts?.yes || 0}</span>
+                    <span>No {submission.vote_counts?.no || 0}</span>
+                    <span>See comment {submission.vote_counts?.see_comment || 0}</span>
+                  </div>
                   <div className="dashboard-row-action">
                     <Link
                       className="smallBtn dashboard-details-button"

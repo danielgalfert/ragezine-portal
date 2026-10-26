@@ -1,15 +1,21 @@
 import logging
 
 from django.db import transaction
+from django.db.models import Count, Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
-from submissions.models import SubmissionDocument
+from submissions.models import SubmissionComment, SubmissionDocument, SubmissionVote
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
-from submissions.serializers import SubmissionCommentSerializer, SubmissionSerializer
+from submissions.serializers import (
+    SubmissionCommentSerializer,
+    SubmissionSerializer,
+    SubmissionVoteInputSerializer,
+    SubmissionVoteSerializer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +38,17 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         return super().get_throttles()
 
     def get_queryset(self):
-        return self.submission_repository.list()
+        return self.submission_repository.list().prefetch_related("documents").annotate(
+            yes_vote_count=Count(
+                "votes", filter=Q(votes__choice=SubmissionVote.Choice.YES)
+            ),
+            no_vote_count=Count(
+                "votes", filter=Q(votes__choice=SubmissionVote.Choice.NO)
+            ),
+            see_comment_vote_count=Count(
+                "votes", filter=Q(votes__choice=SubmissionVote.Choice.SEE_COMMENT)
+            ),
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -82,6 +98,52 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             SubmissionCommentSerializer(comment).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["get", "post"])
+    def votes(self, request, pk=None):
+        submission = self.get_object()
+        if request.method == "GET":
+            return Response(self._vote_state(submission, request.user))
+
+        serializer = SubmissionVoteInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        choice = serializer.validated_data["choice"]
+        comment = serializer.validated_data["comment"]
+
+        with transaction.atomic():
+            vote, created = SubmissionVote.objects.update_or_create(
+                submission=submission,
+                voter=request.user,
+                defaults={"choice": choice, "comment": comment},
+            )
+            if choice == SubmissionVote.Choice.SEE_COMMENT:
+                SubmissionComment.objects.create(
+                    submission=submission,
+                    author=request.user,
+                    author_name=request.user.get_username(),
+                    body=comment,
+                )
+
+        return Response(
+            self._vote_state(submission, request.user),
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @staticmethod
+    def _vote_state(submission, user):
+        votes = list(submission.votes.select_related("voter"))
+        counts = {choice: 0 for choice in SubmissionVote.Choice.values}
+        for vote in votes:
+            counts[vote.choice] += 1
+        counts["total"] = len(votes)
+        return {
+            "counts": counts,
+            "votes": SubmissionVoteSerializer(votes, many=True).data,
+            "my_vote": next(
+                (SubmissionVoteSerializer(vote).data for vote in votes if vote.voter_id == user.pk),
+                None,
+            ),
+        }
 
     def perform_destroy(self, instance):
         submission_id = instance.pk

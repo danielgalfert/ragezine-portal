@@ -19,6 +19,17 @@ export async function getSubmissionById(id) {
   return response.data;
 }
 
+export async function getSubmissionVotes(id) {
+  const response = await client.get(`/submissions/${id}/votes/`);
+  return response.data;
+}
+
+export async function saveSubmissionVote(id, choice, comment = "") {
+  await getCsrfCookie();
+  const response = await client.post(`/submissions/${id}/votes/`, { choice, comment });
+  return response.data;
+}
+
 export async function getSubmissionComments(id) {
   const response = await client.get(`/submissions/${id}/comments/`);
   return response.data;
