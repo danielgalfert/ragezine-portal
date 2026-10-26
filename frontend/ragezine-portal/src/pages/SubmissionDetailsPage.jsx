@@ -295,7 +295,6 @@ export default function SubmissionDetailsPage() {
                   <Detail label="Submitted" value={formatDate(submission.created_at)} />
                   <Detail label="Updated" value={formatDate(submission.updated_at)} />
                   <Detail label="Socials" value={submission.socials} />
-                  <Detail label="English translation" value={submission.allow_translation ? "Allowed" : "Not allowed"} />
                   <Detail label="Description" value={submission.description} />
                   <Detail label="Short bio" value={submission.short_bio} />
                 </dl>
