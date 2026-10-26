@@ -4,7 +4,7 @@ from submissions.utils import sanitize_uploaded_filename
 
 class SubmissionRepository:
     def queryset(self):
-        return Submission.objects.all()
+        return Submission.objects.prefetch_related("documents", "tags")
 
     def list(self):
         return self.queryset()
