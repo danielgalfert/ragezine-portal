@@ -2,14 +2,19 @@
 
 from pathlib import Path
 import re
+from urllib.parse import urlsplit
 
-from django.http import Http404, HttpResponse, StreamingHttpResponse
+from botocore.exceptions import BotoCoreError, ClientError
+from django.conf import settings
+from django.http import Http404, HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils.http import content_disposition_header
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
+from storages.backends.s3 import S3Storage
 
 from submissions.models import SubmissionDocument
 from submissions.preview import (
@@ -28,6 +33,63 @@ from submissions.preview import (
 
 class InvalidRange(Exception):
     pass
+
+
+VIDEO_URL_TTL_SECONDS = 60 * 60
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def video_stream_access(request, document_id):
+    """Authorize staff, then let S3 serve video bytes to the browser."""
+    document = get_object_or_404(SubmissionDocument, pk=document_id)
+    if preview_kind(document) != "video":
+        return Response(
+            {"detail": "This file is not a video preview."},
+            status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+        )
+
+    stored_file = document.file
+    if not stored_file.name:
+        raise Http404("Document file not found.")
+
+    storage = stored_file.storage
+    expires_in = None
+    if isinstance(storage, S3Storage):
+        # A custom domain needs its own CloudFront signer. Never return a public URL.
+        if not storage.querystring_auth or (
+            storage.custom_domain and not storage.cloudfront_signer
+        ):
+            return Response(
+                {"detail": "Private video streaming is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        try:
+            stream_url = storage.url(stored_file.name, expire=VIDEO_URL_TTL_SECONDS)
+        except (BotoCoreError, ClientError, ValueError):
+            return Response(
+                {"detail": "Could not prepare this video for playback."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if not settings.DEBUG and urlsplit(stream_url).scheme != "https":
+            return Response(
+                {"detail": "Private video streaming requires HTTPS."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        expires_in = VIDEO_URL_TTL_SECONDS
+    else:
+        if not storage.exists(stored_file.name):
+            raise Http404("Document file not found.")
+        stream_url = reverse("preview-document", args=[document.pk])
+
+    if request.query_params.get("redirect") == "1":
+        response = HttpResponseRedirect(stream_url)
+        response["Cache-Control"] = "private, no-store"
+        return response
+    return Response(
+        {"url": stream_url, "expires_in": expires_in},
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 def _byte_range(header, size):
@@ -81,6 +143,12 @@ def document_preview(request, document_id):
         )
 
     stored_file = document.file
+    if kind == "video" and isinstance(stored_file.storage, S3Storage) and request.method == "GET":
+        response = HttpResponseRedirect(
+            f'{reverse("video-stream-access", args=[document.pk])}?redirect=1'
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
     if not stored_file.name or not stored_file.storage.exists(stored_file.name):
         raise Http404("Document file not found.")
     filename = Path(document.original_filename or stored_file.name).name

@@ -1,5 +1,7 @@
 from io import BytesIO
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
 from zipfile import ZipFile
 
 from django.contrib.auth import get_user_model
@@ -7,6 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
+from storages.backends.s3 import S3Storage
 
 from submissions.models import Submission, SubmissionDocument
 
@@ -142,6 +145,86 @@ class SubmissionDetailsTests(TestCase):
         self.assertEqual(response["Accept-Ranges"], "bytes")
         self.assertEqual(b"".join(response.streaming_content), content[4:12])
         response.close()
+
+    def test_local_video_access_uses_private_preview(self):
+        document = self.add_document("clip.mp4", b"video-bytes", "video/mp4")
+        url = f"/api/previews/documents/{document.pk}/video-access/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["url"], f"/api/previews/documents/{document.pk}/")
+        self.assertIsNone(response.data["expires_in"])
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+        for user in (None, self.reader):
+            visitor = APIClient()
+            if user:
+                visitor.force_authenticate(user)
+            with self.subTest(user=user):
+                self.assertEqual(visitor.get(url).status_code, 403)
+
+        other = self.add_document("poem.pdf", b"%PDF-1.4", "application/pdf")
+        self.assertEqual(
+            self.client.get(f"/api/previews/documents/{other.pk}/video-access/").status_code,
+            415,
+        )
+
+    def test_s3_video_access_returns_a_signed_get_url(self):
+        document = self.add_document("clip.mp4", b"video-bytes", "video/mp4")
+        storage = S3Storage(
+            bucket_name="review-example-bucket",
+            region_name="eu-central-1",
+            endpoint_url="https://s3.eu-central-1.amazonaws.com",
+            addressing_style="virtual",
+            access_key="test-access-key",
+            secret_key="test-secret-key",
+            querystring_auth=True,
+        )
+        field = SubmissionDocument._meta.get_field("file")
+        with patch.object(field, "storage", storage):
+            response = self.client.get(
+                f"/api/previews/documents/{document.pk}/video-access/"
+            )
+            old_preview = self.client.get(
+                f"/api/previews/documents/{document.pk}/"
+            )
+            redirected = self.client.get(
+                f"/api/previews/documents/{document.pk}/video-access/?redirect=1"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        signed_url = urlsplit(response.data["url"])
+        self.assertEqual(signed_url.scheme, "https")
+        self.assertEqual(
+            signed_url.netloc,
+            "review-example-bucket.s3.eu-central-1.amazonaws.com",
+        )
+        self.assertIn(document.file.name, signed_url.path)
+        self.assertIn("X-Amz-Signature", parse_qs(signed_url.query))
+        self.assertEqual(response.data["expires_in"], 3600)
+        self.assertEqual(old_preview.status_code, 302)
+        self.assertEqual(
+            old_preview["Location"],
+            f"/api/previews/documents/{document.pk}/video-access/?redirect=1",
+        )
+        self.assertEqual(redirected.status_code, 302)
+        self.assertIn("X-Amz-Signature", parse_qs(urlsplit(redirected["Location"]).query))
+        self.assertEqual(redirected["Cache-Control"], "private, no-store")
+
+    def test_s3_video_access_rejects_unsigned_storage(self):
+        document = self.add_document("clip.mp4", b"video-bytes", "video/mp4")
+        storage = S3Storage(
+            bucket_name="review-example-bucket",
+            region_name="eu-central-1",
+            access_key="test-access-key",
+            secret_key="test-secret-key",
+            querystring_auth=False,
+        )
+        field = SubmissionDocument._meta.get_field("file")
+        with patch.object(field, "storage", storage):
+            response = self.client.get(
+                f"/api/previews/documents/{document.pk}/video-access/"
+            )
+        self.assertEqual(response.status_code, 503)
 
     def test_docx_and_tiff_have_safe_previews(self):
         docx = BytesIO()
