@@ -155,9 +155,31 @@
   max-height: 68vh;
 }
 
+.details-video-wrap {
+  width: 100%;
+}
+
 .details-video {
   width: 100%;
   background: #000;
+}
+
+.details-refresh-video {
+  display: block;
+  margin-top: 10px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #4d2d84;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.details-video-error {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin-top: 12px;
 }
 
 .details-text {

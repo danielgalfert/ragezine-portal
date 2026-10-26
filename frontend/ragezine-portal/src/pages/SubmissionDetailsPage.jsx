@@ -8,6 +8,7 @@ import {
   getSubmissionComments,
   getSubmissionPreviewText,
   getSubmissionPreviewUrl,
+  getVideoStreamAccess,
 } from "../services/submissionService";
 import "../styles/dashboard.css";
 import "../styles/nav.css";
@@ -39,6 +40,63 @@ function Detail({ label, value }) {
   );
 }
 
+function VideoPreview({ document }) {
+  const [streamUrl, setStreamUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    getVideoStreamAccess(document.id)
+      .then(({ url }) => {
+        if (active) setStreamUrl(getSubmissionPreviewUrl(url));
+      })
+      .catch(() => {
+        if (active) setError("Could not prepare this video for playback.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [document.id, requestVersion]);
+
+  function refreshAccess() {
+    setStreamUrl(null);
+    setError("");
+    setLoading(true);
+    setRequestVersion((version) => version + 1);
+  }
+
+  return (
+    <div className="details-video-wrap">
+      {loading && <p>Loading video...</p>}
+      {streamUrl && (
+        <>
+          <video
+            className="details-video"
+            controls
+            preload="metadata"
+            src={streamUrl}
+            onError={() => setError("This video could not play. Refresh its link or download it.")}
+          >
+            Your browser cannot play this video. Download it to view it.
+          </video>
+          <button type="button" className="details-refresh-video" onClick={refreshAccess}>
+            refresh video link
+          </button>
+        </>
+      )}
+      {error && (
+        <div className="details-video-error" role="alert">
+          <p>{error}</p>
+          {!streamUrl && <button type="button" className="smallBtn" onClick={refreshAccess}>retry</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Preview({ document }) {
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -56,10 +114,10 @@ function Preview({ document }) {
   }, [document]);
 
   if (!document) return <p>Select a file to preview.</p>;
+  if (document.preview_kind === "video") return <VideoPreview document={document} />;
   if (!url || !document.preview_kind) return <p>A preview is not available for this file. Download it to view it.</p>;
   if (document.preview_kind === "pdf") return <iframe className="details-pdf" src={url} title={`Preview of ${document.original_filename}`} />;
   if (document.preview_kind === "image") return <img className="details-image" src={url} alt={`Preview of ${document.original_filename}`} />;
-  if (document.preview_kind === "video") return <video className="details-video" key={url} controls preload="metadata" src={url}>Your browser cannot play this video. Download it to view it.</video>;
   if (error) return <p role="alert">{error}</p>;
   if (loading || !text) return <p>Loading preview...</p>;
   return <pre className="details-text">{text}</pre>;

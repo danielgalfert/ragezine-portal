@@ -32,12 +32,18 @@ export async function addSubmissionComment(id, body) {
 
 export function getSubmissionPreviewUrl(path) {
   if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
   const apiBase = new URL(client.defaults.baseURL, window.location.href);
   return new URL(path, apiBase).toString();
 }
 
 export async function getSubmissionPreviewText(path) {
   const response = await client.get(getSubmissionPreviewUrl(path), { responseType: "text" });
+  return response.data;
+}
+
+export async function getVideoStreamAccess(documentId) {
+  const response = await client.get(`/previews/documents/${documentId}/video-access/`);
   return response.data;
 }
 
