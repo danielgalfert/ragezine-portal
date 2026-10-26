@@ -39,6 +39,7 @@ EXCEL_COLUMN_CONFIG = [
     ("countries_residence", "Countries Residence"),
     ("language", "Language"),
     ("created_at", "Created At"),
+    ("tags", "Tags"),
     ("vote_yes", "Yes Votes"),
     ("vote_no", "No Votes"),
     ("vote_see_comment", "See Comment Votes"),
@@ -125,6 +126,8 @@ def _format_excel_field(submission, field_name, vote_counts):
         return ", ".join(country_name(code) for code in submission.countries_residence)
     if field_name == "created_at":
         return submission.created_at.replace(tzinfo=None)
+    if field_name == "tags":
+        return _safe_excel_text(", ".join(tag.name for tag in submission.tags.all()))
     return _safe_excel_text(getattr(submission, field_name))
 
 
@@ -161,6 +164,7 @@ def _autosize_worksheet(worksheet):
 def _build_excel_workbook():
     submissions = list(
         submission_repository.list().prefetch_related(
+            "tags",
             Prefetch(
                 "votes",
                 queryset=SubmissionVote.objects.filter(
