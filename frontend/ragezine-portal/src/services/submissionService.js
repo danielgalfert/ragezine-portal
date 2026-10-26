@@ -30,6 +30,12 @@ export async function saveSubmissionVote(id, choice) {
   return response.data;
 }
 
+export async function clearSubmissionVote(id) {
+  await getCsrfCookie();
+  const response = await client.delete(`/submissions/${id}/votes/`);
+  return response.data;
+}
+
 export async function getSubmissionComments(id) {
   const response = await client.get(`/submissions/${id}/comments/`);
   return response.data;

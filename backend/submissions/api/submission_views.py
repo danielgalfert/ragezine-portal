@@ -99,10 +99,16 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["get", "post"])
+    @action(detail=True, methods=["get", "post", "delete"])
     def votes(self, request, pk=None):
         submission = self.get_object()
         if request.method == "GET":
+            return Response(self._vote_state(submission, request.user))
+        if request.method == "DELETE":
+            SubmissionVote.objects.filter(
+                submission=submission,
+                voter=request.user,
+            ).delete()
             return Response(self._vote_state(submission, request.user))
 
         serializer = SubmissionVoteInputSerializer(data=request.data)
