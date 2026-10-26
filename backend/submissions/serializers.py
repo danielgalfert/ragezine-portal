@@ -1,10 +1,11 @@
 import pycountry
 
 from django.conf import settings
+from django.db.models import Count
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Submission, SubmissionComment, SubmissionDocument, Tag
+from .models import Submission, SubmissionComment, SubmissionDocument, SubmissionVote, Tag
 from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
@@ -93,6 +94,26 @@ class SubmissionCommentSerializer(serializers.ModelSerializer):
         return value
 
 
+class SubmissionVoteInputSerializer(serializers.Serializer):
+    choice = serializers.ChoiceField(choices=SubmissionVote.Choice.choices)
+
+    def validate(self, attrs):
+        if set(self.initial_data) != {"choice"}:
+            raise serializers.ValidationError("Send only a vote choice.")
+        return attrs
+
+
+class SubmissionVoteSerializer(serializers.ModelSerializer):
+    voter_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SubmissionVote
+        fields = ["id", "voter_id", "voter_name", "choice", "updated_at"]
+
+    def get_voter_name(self, obj):
+        return obj.voter.get_username()
+
+
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
@@ -127,6 +148,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         max_length=20,
     )
     documents = SubmissionDocumentSerializer(many=True, read_only=True)
+    vote_counts = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
@@ -150,10 +172,27 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "language",
             "allow_translation",
             "documents",
+            "vote_counts",
             "tags",
             "created_at",
             "updated_at",
         ]
+
+    def get_vote_counts(self, obj):
+        counts = {choice: 0 for choice in SubmissionVote.Choice.values}
+        annotated = {
+            "yes": getattr(obj, "yes_vote_count", None),
+            "no": getattr(obj, "no_vote_count", None),
+            "see_comment": getattr(obj, "see_comment_vote_count", None),
+        }
+        if all(value is not None for value in annotated.values()):
+            counts.update(annotated)
+        else:
+            for row in obj.votes.values("choice").annotate(count=Count("id")):
+                counts[row["choice"]] = row["count"]
+        counts["total"] = sum(counts.values())
+        return counts
+
     def get_countries_residence_names(self, obj):
         return [country_name(code) for code in obj.countries_residence]
 

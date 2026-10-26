@@ -196,7 +196,7 @@
 .dashboard-list-head,
 .dashboard-row {
   display: grid;
-  grid-template-columns: 64px 112px minmax(110px, 0.9fr) minmax(240px, 2fr) minmax(100px, 0.8fr) minmax(180px, 1.3fr) minmax(160px, 1.2fr) 236px;
+  grid-template-columns: 64px 112px minmax(110px, 0.9fr) minmax(240px, 2fr) minmax(100px, 0.8fr) minmax(180px, 1.3fr) minmax(160px, 1.2fr) minmax(130px, 0.9fr) 236px;
   gap: 14px;
   align-items: start;
 }
@@ -297,6 +297,15 @@
   text-underline-offset: 2px;
 }
 
+.dashboard-row-votes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: "NewEdge666Light", sans-serif;
+  font-size: 0.86rem;
+  line-height: 1.3;
+}
+
 .dashboard-row-action {
   display: flex;
   justify-content: center;
@@ -355,6 +364,7 @@
       "artist type"
       "title title"
       "email location"
+      "votes votes"
       "action action";
     gap: 12px 16px;
     padding: 18px;
@@ -375,6 +385,7 @@
   .dashboard-row-type { grid-area: type; }
   .dashboard-row-email { grid-area: email; }
   .dashboard-row-location { grid-area: location; }
+  .dashboard-row-votes { grid-area: votes; }
   .dashboard-row-action { grid-area: action; }
 
   .dashboard-row-id::before { content: "ID"; }
@@ -384,6 +395,7 @@
   .dashboard-row-type::before { content: "type"; }
   .dashboard-row-email::before { content: "email"; }
   .dashboard-row-location::before { content: "residence"; }
+  .dashboard-row-votes::before { content: "votes"; }
 
   .dashboard-row > div:not(.dashboard-row-action)::before {
     display: block;
@@ -468,6 +480,7 @@
       "type type"
       "email email"
       "location location"
+      "votes votes"
       "action action";
     gap: 12px;
   }

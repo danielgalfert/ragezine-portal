@@ -241,6 +241,100 @@
   overflow-wrap: anywhere;
 }
 
+.details-vote-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 380px);
+  align-items: start;
+  gap: 24px;
+}
+
+.details-vote-top h3 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+}
+
+.details-vote-summary h3 {
+  text-align: right;
+}
+
+.details-vote-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.details-vote-counts span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  border: 1px solid rgba(5, 3, 8, .18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .55);
+}
+
+.details-vote-counts strong {
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.details-vote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.details-vote-button {
+  min-width: 96px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.details-vote-button.is-selected {
+  background: #180d1b;
+  border-color: #180d1b;
+  color: #fff;
+}
+
+.details-vote-button:disabled {
+  opacity: .65;
+}
+
+.details-voter-list {
+  margin-top: 28px;
+}
+
+.details-voter-list h3 {
+  margin-bottom: 4px;
+}
+
+.details-voter {
+  padding: 14px 0;
+  border-top: 1px solid rgba(5, 3, 8, .15);
+}
+
+.details-voter div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.details-voter time {
+  display: block;
+  margin-top: 4px;
+  font-size: .85rem;
+  color: #65466b;
+}
+
+.details-voter p {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .details-comments form {
   display: grid;
   gap: 10px;
@@ -301,8 +395,17 @@
   .details-file-button { min-width: 180px; max-width: 240px; }
 }
 
+@media (max-width: 700px) {
+  .details-vote-top { grid-template-columns: minmax(0, 1fr); }
+  .details-vote-summary h3 { text-align: left; }
+}
+
 @media (max-width: 600px) {
   .details-grid { grid-template-columns: minmax(0, 1fr); }
   .details-preview { min-height: 260px; }
   .details-pdf { min-height: 55vh; }
+}
+
+@media (max-width: 480px) {
+  .details-vote-counts { grid-template-columns: minmax(0, 1fr); }
 }

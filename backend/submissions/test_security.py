@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from submissions.models import Submission, Tag
+from submissions.models import Submission, SubmissionVote, Tag
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
@@ -159,13 +159,21 @@ class StaffInputSecurityTests(TestCase):
             email="artist@example.com",
         )
         submission.tags.add(Tag.objects.create(name="-formula-like-tag"))
-        client = APIClient()
-        client.force_authenticate(get_user_model().objects.create_user(
+        reviewer = get_user_model().objects.create_user(
             username="reviewer", password="S3cretPass123", is_staff=True
-        ))
+        )
+        voter = get_user_model().objects.create_user(
+            username="@other-reviewer", password="S3cretPass123", is_staff=True
+        )
+        SubmissionVote.objects.create(
+            submission=submission, voter=voter, choice=SubmissionVote.Choice.YES
+        )
+        client = APIClient()
+        client.force_authenticate(reviewer)
 
         response = client.get("/api/downloads/excel/")
-        sheet = load_workbook(BytesIO(response.content))["Poetry"]
+        workbook = load_workbook(BytesIO(response.content))
+        sheet = workbook["Poetry"]
 
         self.assertEqual(sheet["B2"].data_type, "s")
         self.assertTrue(sheet["B2"].value.startswith("'="))
@@ -173,6 +181,11 @@ class StaffInputSecurityTests(TestCase):
         self.assertTrue(sheet["F2"].value.startswith("'+"))
         self.assertEqual(sheet["O2"].data_type, "s")
         self.assertEqual(sheet["O2"].value, "'-formula-like-tag")
+        votes_sheet = workbook["Votes"]
+        self.assertEqual(votes_sheet["B2"].data_type, "s")
+        self.assertTrue(votes_sheet["B2"].value.startswith("'="))
+        self.assertEqual(votes_sheet["D2"].data_type, "s")
+        self.assertTrue(votes_sheet["D2"].value.startswith("'@"))
 
     def test_archive_export_handles_path_like_artist_name(self):
         submission = Submission.objects.create(
