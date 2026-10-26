@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from submissions.models import Submission
+from submissions.models import Submission, Tag
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
@@ -148,7 +148,7 @@ class StaffInputSecurityTests(TestCase):
         self.assertEqual(accepted.status_code, 200)
 
     def test_excel_export_keeps_attacker_text_as_text(self):
-        Submission.objects.create(
+        submission = Submission.objects.create(
             title='=HYPERLINK("https://example.com", "click")',
             submission_type="poetry",
             artist_name="+cmd|'/C calc'!A0",
@@ -158,6 +158,7 @@ class StaffInputSecurityTests(TestCase):
             countries_residence=["DK"],
             email="artist@example.com",
         )
+        submission.tags.add(Tag.objects.create(name="-formula-like-tag"))
         client = APIClient()
         client.force_authenticate(get_user_model().objects.create_user(
             username="reviewer", password="S3cretPass123", is_staff=True
@@ -170,6 +171,8 @@ class StaffInputSecurityTests(TestCase):
         self.assertTrue(sheet["B2"].value.startswith("'="))
         self.assertEqual(sheet["F2"].data_type, "s")
         self.assertTrue(sheet["F2"].value.startswith("'+"))
+        self.assertEqual(sheet["O2"].data_type, "s")
+        self.assertEqual(sheet["O2"].value, "'-formula-like-tag")
 
     def test_archive_export_handles_path_like_artist_name(self):
         submission = Submission.objects.create(
