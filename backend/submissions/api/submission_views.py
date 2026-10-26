@@ -2,13 +2,14 @@ import logging
 
 from django.db import transaction
 from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
 from submissions.models import SubmissionDocument
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
-from submissions.serializers import SubmissionSerializer
+from submissions.serializers import SubmissionCommentSerializer, SubmissionSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,25 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
         output_serializer = self.get_serializer(submission)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get", "post"])
+    def comments(self, request, pk=None):
+        submission = self.get_object()
+        if request.method == "GET":
+            comments = submission.staff_comments.all()
+            return Response(SubmissionCommentSerializer(comments, many=True).data)
+
+        serializer = SubmissionCommentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.save(
+            submission=submission,
+            author=request.user,
+            author_name=request.user.get_username(),
+        )
+        return Response(
+            SubmissionCommentSerializer(comment).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def perform_destroy(self, instance):
         submission_id = instance.pk

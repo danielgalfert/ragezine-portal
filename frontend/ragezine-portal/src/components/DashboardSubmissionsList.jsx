@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { deleteSubmission, getSubmissions } from "../services/submissionService";
 import { downloadSubmissionArchive } from "../services/downloadService";
@@ -236,6 +237,13 @@ export default function DashboardSubmissionsList() {
                   <div className="dashboard-row-email">{submission.email || "Missing"}</div>
                   <div className="dashboard-row-location">{getResidenceLabel(submission)}</div>
                   <div className="dashboard-row-action">
+                    <Link
+                      className="smallBtn dashboard-details-button"
+                      to={`/dashboard/submissions/${submission.id}`}
+                      aria-label={`View details for submission ${submission.id}`}
+                    >
+                      details
+                    </Link>
                     <button
                       type="button"
                       className="smallBtn dashboard-download-button"
