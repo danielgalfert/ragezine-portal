@@ -99,16 +99,19 @@ def _byte_range(header, size):
     if not match or size <= 0:
         raise InvalidRange
     first, last = match.groups()
-    if first:
-        start = int(first)
-        end = int(last) if last else size - 1
+    try:
+        start = int(first) if first else None
+        end = int(last) if last else None
+    except ValueError as exc:
+        raise InvalidRange from exc
+    if start is not None:
+        end = end if end is not None else size - 1
         if start >= size or end < start:
             raise InvalidRange
         return start, min(end, size - 1)
-    if not last or int(last) <= 0:
+    if end is None or end <= 0:
         raise InvalidRange
-    suffix_length = int(last)
-    return max(0, size - suffix_length), size - 1
+    return max(0, size - end), size - 1
 
 
 def _stream_range(stored_file, remaining):

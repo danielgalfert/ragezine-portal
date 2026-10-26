@@ -134,6 +134,13 @@ class SubmissionDetailsTests(TestCase):
         self.assertEqual(invalid.status_code, 416)
         self.assertEqual(invalid["Content-Range"], f"bytes */{len(content)}")
 
+        huge_number = "9" * 5000
+        for header in (f"bytes={huge_number}-", f"bytes=-{huge_number}"):
+            with self.subTest(header_type=header[:8]):
+                response = self.client.get(url, HTTP_RANGE=header)
+                self.assertEqual(response.status_code, 416)
+                self.assertEqual(response["Content-Range"], f"bytes */{len(content)}")
+
     def test_video_preview_streams_a_requested_range(self):
         content = b"\x00\x00\x00\x18ftypmp42video-bytes"
         document = self.add_document("clip.mp4", content, "video/mp4")
