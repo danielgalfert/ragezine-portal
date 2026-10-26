@@ -35,8 +35,7 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         return self.submission_repository.list()
 
     def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        serializer = self.get_serializer(data=data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         with transaction.atomic():
