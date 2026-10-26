@@ -45,6 +45,36 @@ disk and sent as streamed downloads rather than held in memory.
 
 Submission receipts do not attach uploaded files, including videos.
 
+## Staff submission details
+
+Select **details** in the dashboard list to open a submission. The page shows
+all stored fields, file downloads, previews, and staff comments. Only staff
+accounts can read or add comments or open previews. PDF and video previews
+stream with byte ranges, so the browser can request part of a large file.
+Images open in the page. DOCX and ODT files show extracted plain text; TIFF
+files show a smaller PNG. Older DOC files and any file that cannot be rendered
+safely offer the original download instead. Preview responses are private and
+are not cached. Apply Django migration `0008_submissioncomment` when deploying
+this branch.
+
+For S3-backed videos, the staff page requests a one-hour, signed URL for the
+selected file. The browser plays it inside the page but reads byte ranges
+directly from S3, so a long video does not hold a Django worker. The older
+private video preview URL also redirects to the signed S3 URL. Local storage
+still uses Django's private preview endpoint. A failed or expired video link
+can be refreshed from the page. Signed links must remain private until they
+expire; they are issued only after a staff check and are never stored in the
+submission response.
+
+The nginx policy allows video from `RAGEZINE_NGINX_MEDIA_ORIGIN`, which defaults
+to the configured Ragezine S3 bucket host. Set this value to the exact HTTPS
+media origin if the bucket or delivery host changes. Production must use a
+private S3 bucket with signed URLs enabled. Before switching an existing local
+deployment to S3, copy its stored files to S3 with the same object keys;
+changing the storage setting alone does not copy files. New S3 uploads carry
+their media content type and `Cache-Control: private, no-store`; check the
+metadata on files that were already in the bucket.
+
 ## Staff accounts
 
 With the Compose stack running, create a dashboard account from the project root:
