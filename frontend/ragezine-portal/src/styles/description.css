@@ -57,8 +57,7 @@
   width: 100%;
   display: grid;
   justify-items: center;
-  gap: 0.12em;
-  font-size: clamp(2.25rem, 5vw, 4.75rem);
+  font-size: clamp(3rem, 8vw, 7.5rem);
   line-height: 1;
   letter-spacing: -0.025em;
 }
@@ -70,20 +69,38 @@
   white-space: nowrap;
 }
 
+.hero-wordmark-rage,
+.hero-wordmark-zine {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.hero-wordmark-rage > span,
+.hero-wordmark-zine > span {
+  display: inline-block;
+}
+
 .hero-letter-heavy {
   font-family: "NewEdge666UltraBoldSlanted", sans-serif;
 }
 
-.hero-letter-regular,
-.hero-title-suffix {
+.hero-letter-regular {
   font-family: "NewEdge666", sans-serif;
+  transform: scaleX(1.15);
+  margin-inline: 0.04em;
 }
 
 .hero-letter-light {
   font-family: "NewEdge666Light", sans-serif;
+  transform: scaleX(1.24);
+  margin-inline: 0.06em;
 }
 
-.hero-title-suffix {
+.hero-copy .hero-subtitle {
+  margin-top: 8px;
+  font-family: "NewEdge666", sans-serif;
+  font-size: clamp(1.5rem, 4vw, 3.25rem);
+  line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
 }
@@ -257,7 +274,7 @@
   }
 
   .hero-title {
-    font-size: clamp(1.5rem, 7vw, 2.5rem);
+    font-size: clamp(2.25rem, 10vw, 3.75rem);
   }
 
   .hero-description {
