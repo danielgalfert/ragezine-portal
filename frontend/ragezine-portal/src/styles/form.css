@@ -134,6 +134,37 @@
   gap: 10px;
 }
 
+.portal-pronoun-suggestions-label {
+  margin-top: 0.7rem;
+}
+
+.portal-pronoun-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.portal-pronoun-suggestion {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(5, 3, 8, 0.1);
+  border-radius: 999px;
+  background: rgba(206, 189, 239, 0.42);
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+}
+
+.portal-pronoun-suggestion:hover,
+.portal-pronoun-suggestion:focus-visible {
+  background: rgba(206, 189, 239, 0.8);
+}
+
+.portal-pronoun-suggestion:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .portal-filelist li {
   display: flex;
   justify-content: space-between;

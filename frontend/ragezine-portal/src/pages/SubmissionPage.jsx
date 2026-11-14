@@ -2,7 +2,6 @@ import React, { useMemo, useRef, useState } from "react";
 
 import CountrySelect from "../components/CountrySelect";
 import FormField from "../components/FormField";
-import PronounSelect from "../components/PronounSelect";
 import { createSubmission } from "../services/submissionService";
 import {
   isLikelyEmail,
@@ -18,6 +17,18 @@ const RECOMMENDED_VISUALS = 5;
 const MAX_VISUAL_ATTACHMENTS = 50;
 const MAX_TEXT_ATTACHMENTS = 10;
 const MAX_WORDS_TEXT = 1500;
+const MAX_PRONOUN_TAGS = 10;
+const PRONOUN_SUGGESTIONS = [
+  { value: "she/her", label: "She / Her" },
+  { value: "he/him", label: "He / Him" },
+  { value: "they/them", label: "They / Them" },
+  { value: "she/they", label: "She / They" },
+  { value: "he/they", label: "He / They" },
+  { value: "xe/xem", label: "Xe / Xem" },
+  { value: "ze/zir", label: "Ze / Zir" },
+  { value: "Any pronouns", label: "Any pronouns" },
+  { value: "Prefer not to say", label: "Prefer not to say" },
+];
 const SUBMISSION_TYPE_OPTIONS = [
   { value: "poetry", label: "Poetry" },
   { value: "visual_art", label: "Visual art" },
@@ -32,7 +43,7 @@ const initialForm = {
   description: "",
   submission_type: "",
   artist_name: "",
-  pronouns: "",
+  pronouns: [],
   short_bio: "",
   socials: [],
   email: "",
@@ -52,6 +63,7 @@ export default function SubmissionPage() {
   const videoFileInputRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [socialInput, setSocialInput] = useState("");
+  const [pronounInput, setPronounInput] = useState("");
   const [textFiles, setTextFiles] = useState([]);
   const [visualFiles, setVisualFiles] = useState([]);
   const [videoFiles, setVideoFiles] = useState([]);
@@ -72,7 +84,7 @@ export default function SubmissionPage() {
   function update(key, value) {
     let nextValue = value;
 
-    if (["submission_type", "pronouns"].includes(key)) {
+    if (key === "submission_type") {
       nextValue = sanitizeSingleLine(value);
     }
 
@@ -112,6 +124,7 @@ export default function SubmissionPage() {
   function clearAll() {
     setForm(initialForm);
     setSocialInput("");
+    setPronounInput("");
     setTextFiles([]);
     setVisualFiles([]);
     setVideoFiles([]);
@@ -175,6 +188,36 @@ export default function SubmissionPage() {
     }));
   }
 
+  function pronounTags() {
+    const draft = sanitizeSingleLine(pronounInput);
+    const tags = [...form.pronouns];
+    if (draft && !tags.some((tag) => tag.toLowerCase() === draft.toLowerCase())) tags.push(draft);
+    return tags;
+  }
+
+  function addPronounValue(rawValue) {
+    const value = sanitizeSingleLine(rawValue);
+    if (!value) return;
+    setForm((prev) => ({
+      ...prev,
+      pronouns: prev.pronouns.length >= MAX_PRONOUN_TAGS || prev.pronouns.some((tag) => tag.toLowerCase() === value.toLowerCase())
+        ? prev.pronouns
+        : [...prev.pronouns, value],
+    }));
+  }
+
+  function addPronoun() {
+    addPronounValue(pronounInput);
+    setPronounInput("");
+  }
+
+  function removePronoun(index) {
+    setForm((prev) => ({
+      ...prev,
+      pronouns: prev.pronouns.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  }
+
   function onPickTextFiles(fileList) {
     const picked = Array.from(fileList || []);
     setTextFiles((prev) => [...prev, ...picked]);
@@ -228,7 +271,7 @@ export default function SubmissionPage() {
       description: sanitizeMultiline(form.description),
       submission_type: sanitizeSingleLine(form.submission_type),
       artist_name: sanitizeSingleLine(form.artist_name),
-      pronouns: sanitizeSingleLine(form.pronouns).toLowerCase(),
+      pronouns: pronounTags().join(", "),
       short_bio: sanitizeMultiline(form.short_bio),
       socials: form.socials.map(sanitizeSingleLine).filter(Boolean),
       email: sanitizeSingleLine(form.email).toLowerCase(),
@@ -284,7 +327,8 @@ export default function SubmissionPage() {
     if (!form.title.trim()) return "Please provide a title of your work(s).";
     if (!form.submission_type) return "Please choose a submission type.";
     if (!form.artist_name.trim()) return "Please provide an artist name.";
-    if (!form.pronouns.trim()) return "Please provide pronouns (or write N/A).";
+    if (!pronounTags().length) return "Please provide pronouns (or add 'Prefer not to say').";
+    if (pronounTags().length > MAX_PRONOUN_TAGS) return `Add at most ${MAX_PRONOUN_TAGS} pronoun tags.`;
     if (!form.short_bio.trim()) return "Please provide a short bio (2-3 sentences).";
     if (!form.email.trim()) return "Please provide an email address.";
     if (!isLikelyEmail(form.email)) return "Please provide a valid email address.";
@@ -453,7 +497,53 @@ export default function SubmissionPage() {
                 </FormField>
 
                 <FormField label="Pronouns *">
-                  <PronounSelect value={form.pronouns} onChange={(pronoun) => update("pronouns", pronoun)} />
+                  <div className="portal-inline-entry">
+                    <input
+                      className="portal-input"
+                      value={pronounInput}
+                      onChange={(event) => setPronounInput(event.target.value)}
+                      onBlur={(event) => setPronounInput(sanitizeSingleLine(event.target.value))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          addPronoun();
+                        }
+                      }}
+                      placeholder="she/her or your own"
+                      maxLength={40}
+                      disabled={form.pronouns.length >= MAX_PRONOUN_TAGS}
+                      aria-label="Add pronouns"
+                    />
+                    <button type="button" className="smallBtn portal-inline-btn" onClick={addPronoun} disabled={form.pronouns.length >= MAX_PRONOUN_TAGS}>
+                      add
+                    </button>
+                  </div>
+                  <div className="portal-help portal-pronoun-suggestions-label">Suggestions:</div>
+                  <div className="portal-pronoun-suggestions" role="group" aria-label="Suggested pronouns">
+                    {PRONOUN_SUGGESTIONS.filter((option) => !form.pronouns.some((tag) => tag.toLowerCase() === option.value.toLowerCase())).map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className="portal-pronoun-suggestion"
+                        onClick={() => addPronounValue(option.value)}
+                        disabled={form.pronouns.length >= MAX_PRONOUN_TAGS}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {form.pronouns.length > 0 && (
+                    <ul className="portal-pill-list">
+                      {form.pronouns.map((pronoun, index) => (
+                        <li key={`${pronoun}-${index}`}>
+                          <span>{pronoun}</span>
+                          <button type="button" className="portal-remove-inline" onClick={() => removePronoun(index)} aria-label={`Remove ${pronoun}`}>
+                            x
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </FormField>
 
                 <FormField label="Country of origin *">

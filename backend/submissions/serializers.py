@@ -14,19 +14,6 @@ from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
-PRONOUN_VALUES = {
-    "she/her",
-    "he/him",
-    "they/them",
-    "she/they",
-    "he/they",
-    "xe/xem",
-    "ze/zir",
-    "any",
-    "prefer-not",
-    "other",
-}
-
 VALID_LANGUAGES = {
     "English",
     "Spanish",
@@ -281,12 +268,20 @@ class SubmissionSerializer(serializers.ModelSerializer):
         return value
 
     def validate_pronouns(self, value):
-        value = sanitize_single_line(value).lower()
-        if value not in PRONOUN_VALUES:
-            raise serializers.ValidationError(
-                "Pronouns must be one of the allowed options."
-            )
-        return value
+        tags = [sanitize_single_line(tag) for tag in value.split(",")]
+        if not tags or len(tags) > 10 or any(
+            not tag or len(tag) > 40 or not any(char.isalnum() for char in tag)
+            for tag in tags
+        ):
+            raise serializers.ValidationError("Add 1 to 10 pronoun tags of at most 40 characters each.")
+        unique_tags = []
+        seen = set()
+        for tag in tags:
+            normalized = tag.casefold()
+            if normalized not in seen:
+                unique_tags.append(tag)
+                seen.add(normalized)
+        return ", ".join(unique_tags)
 
     def validate_short_bio(self, value):
         value = sanitize_multiline(value)
