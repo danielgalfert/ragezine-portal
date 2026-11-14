@@ -398,7 +398,8 @@ export default function SubmissionPage() {
                   <span className="sub">Format:</span><br />
                   Text: Word, Google Doc or PDF (max. {MAX_WORDS_TEXT} words)<br />
                   Visual: TIFF at 300 dpi, or link<br />
-                  Video: MP4, MOV, or WebM, or link (max. {MAX_VISUALS} visual and video files or links in total)
+                  Video: MP4, MOV, or WebM, or link<br />
+                  (max. {MAX_VISUALS} visual and video files or links in total)
                 </p>
               </div>
 
