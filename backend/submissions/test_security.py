@@ -102,11 +102,11 @@ class PublicInputSecurityTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("text_files", response.data)
 
-    def test_rejects_more_than_five_visuals(self):
+    def test_rejects_more_than_fifty_visuals(self):
         payload = valid_payload()
         payload["visuals"] = [
             SimpleUploadedFile(f"image-{index}.tif", b"II*\x00pixels")
-            for index in range(6)
+            for index in range(51)
         ]
 
         response = self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.103")

@@ -14,7 +14,8 @@ import {
 import "../styles/description.css";
 import "../styles/form.css";
 
-const MAX_VISUALS = 5;
+const RECOMMENDED_VISUALS = 5;
+const MAX_VISUAL_ATTACHMENTS = 50;
 const MAX_TEXT_ATTACHMENTS = 10;
 const MAX_WORDS_TEXT = 1500;
 const SUBMISSION_TYPE_OPTIONS = [
@@ -92,7 +93,7 @@ export default function SubmissionPage() {
 
   function onPickVisuals(fileList) {
     const picked = Array.from(fileList || []);
-    setVisualFiles((prev) => [...prev, ...picked].slice(0, MAX_VISUALS));
+    setVisualFiles((prev) => [...prev, ...picked].slice(0, MAX_VISUAL_ATTACHMENTS));
   }
 
   function removeVisual(idx) {
@@ -101,7 +102,7 @@ export default function SubmissionPage() {
 
   function onPickVideos(fileList) {
     const picked = Array.from(fileList || []);
-    setVideoFiles((prev) => [...prev, ...picked].slice(0, MAX_VISUALS));
+    setVideoFiles((prev) => [...prev, ...picked].slice(0, MAX_VISUAL_ATTACHMENTS));
   }
 
   function removeVideo(idx) {
@@ -186,7 +187,7 @@ export default function SubmissionPage() {
   function linkFields(type) {
     const links = type === "text" ? textLinks : type === "visual" ? visualLinks : videoLinks;
     const setLinks = type === "text" ? setTextLinks : type === "visual" ? setVisualLinks : setVideoLinks;
-    const limit = type === "text" ? MAX_TEXT_ATTACHMENTS : MAX_VISUALS;
+    const limit = type === "text" ? MAX_TEXT_ATTACHMENTS : MAX_VISUAL_ATTACHMENTS;
     const otherAttachmentCount = type === "text" ? textFiles.length :
       visualFiles.length + videoFiles.length + (type === "visual" ? videoLinks : visualLinks).filter((url) => url.trim()).length;
     return (
@@ -299,7 +300,7 @@ export default function SubmissionPage() {
       }
     })) return "Use complete HTTPS links for your work.";
     if (textFiles.length + textLinks.filter((url) => url.trim()).length > MAX_TEXT_ATTACHMENTS) return `Add at most ${MAX_TEXT_ATTACHMENTS} text files or links.`;
-    if (visualFiles.length + videoFiles.length + [...visualLinks, ...videoLinks].filter((url) => url.trim()).length > MAX_VISUALS) return `Add at most ${MAX_VISUALS} visual or video files or links.`;
+    if (visualFiles.length + videoFiles.length + [...visualLinks, ...videoLinks].filter((url) => url.trim()).length > MAX_VISUAL_ATTACHMENTS) return `Add at most ${MAX_VISUAL_ATTACHMENTS} visual or video files or links.`;
     if (!textFiles.length && !visualFiles.length && !videoFiles.length && !links.length) return "Add at least one file or link.";
 
     return "";
@@ -399,7 +400,7 @@ export default function SubmissionPage() {
                   Text: Word, Google Doc or PDF (max. {MAX_WORDS_TEXT} words)<br />
                   Visual: TIFF at 300 dpi, or link<br />
                   Video: MP4, MOV, or WebM, or link<br />
-                  (max. {MAX_VISUALS} visual and video files or links in total)
+                  We recommend up to {RECOMMENDED_VISUALS} visual and video files or links in total.
                 </p>
               </div>
 
