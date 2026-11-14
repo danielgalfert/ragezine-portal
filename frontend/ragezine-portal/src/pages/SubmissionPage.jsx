@@ -270,7 +270,23 @@ export default function SubmissionPage() {
       <section className="hero" id="home">
         <div className="hero-panel">
           <div className="hero-copy">
-            <h1>Submission Portal</h1>
+            <h1 className="hero-title" aria-label="RAGE Zine submission portal.">
+              <span className="hero-wordmark" aria-hidden="true">
+                <span className="hero-wordmark-rage">
+                  <span className="hero-letter-heavy">R</span>
+                  <span className="hero-letter-regular">A</span>
+                  <span className="hero-letter-heavy">G</span>
+                  <span className="hero-letter-heavy">E</span>
+                </span>
+                <span className="hero-wordmark-zine">
+                  <span className="hero-letter-light">Z</span>
+                  <span className="hero-letter-heavy">i</span>
+                  <span className="hero-letter-heavy">n</span>
+                  <span className="hero-letter-light">e</span>
+                </span>
+              </span>
+              <span className="hero-title-suffix">submission portal.</span>
+            </h1>
             <div className="hero-description">
               <p>
                 RAGE Zine is a global multidisciplinary print and digital zine &amp; platform exploring the theme of feminist rage.

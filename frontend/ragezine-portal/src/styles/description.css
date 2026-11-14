@@ -53,14 +53,39 @@
   min-width: 0;
 }
 
-.hero-copy h1 {
+.hero-title {
   width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 0.12em;
+  font-size: clamp(2.5rem, 7vw, 6.5rem);
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.hero-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.32em;
+  white-space: nowrap;
+}
+
+.hero-letter-heavy {
   font-family: "NewEdge666UltraBoldSlanted", sans-serif;
-  font-size: clamp(3rem, 11.4vw, 10rem);
-  line-height: 0.88;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-  text-wrap: balance;
+}
+
+.hero-letter-regular,
+.hero-title-suffix {
+  font-family: "NewEdge666", sans-serif;
+}
+
+.hero-letter-light {
+  font-family: "NewEdge666Light", sans-serif;
+}
+
+.hero-title-suffix {
+  font-size: 0.6em;
+  letter-spacing: 0;
 }
 
 .hero-description {
@@ -231,8 +256,8 @@
     padding-bottom: 48px;
   }
 
-  .hero-copy h1 {
-    font-size: clamp(2.125rem, calc(16vw - 17px), 4.75rem);
+  .hero-title {
+    font-size: clamp(2rem, 10vw, 3.75rem);
   }
 
   .hero-description {
