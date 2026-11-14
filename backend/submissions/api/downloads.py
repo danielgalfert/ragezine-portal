@@ -18,7 +18,7 @@ from rest_framework.permissions import IsAdminUser
 from submissions.api.throttles import StaffExportThrottle
 from submissions.models import Submission, SubmissionDocument, SubmissionVote
 from submissions.repositories import SubmissionRepository
-from submissions.serializers import country_name
+from submissions.serializers import country_name, origin_codes
 from submissions.utils import sanitize_single_line
 
 
@@ -99,7 +99,7 @@ def _format_submission_details(submission):
         f"Pronouns: {submission.pronouns}",
         f"Short Bio: {submission.short_bio}",
         f"Socials: {socials}",
-        f"Country of Origin: {country_name(submission.country_origin)}",
+        f"Country of Origin: {', '.join(country_name(code) for code in origin_codes(submission.country_origin))}",
         f"Countries of Residence: {countries_residence}",
         f"Language: {submission.language}",
         f"Allow Translation: {'yes' if submission.allow_translation else 'no'}",
@@ -127,7 +127,7 @@ def _format_excel_field(submission, field_name, vote_counts):
     if field_name == "submission_type":
         return submission.get_submission_type_display()
     if field_name == "country_origin":
-        return country_name(submission.country_origin)
+        return ", ".join(country_name(code) for code in origin_codes(submission.country_origin))
     if field_name == "countries_residence":
         return ", ".join(country_name(code) for code in submission.countries_residence)
     if field_name == "created_at":

@@ -40,7 +40,7 @@ function formatDate(value) {
 function getResidenceLabel(submission) {
   const residences = submission.countries_residence_names || [];
   if (!residences.length) {
-    return submission.country_origin || "Unknown";
+    return submission.country_origin_names?.join(", ") || submission.country_origin_name || "Unknown";
   }
 
   return residences.join(", ");
