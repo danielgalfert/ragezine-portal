@@ -271,10 +271,23 @@ export default function SubmissionPage() {
         <div className="hero-panel">
           <div className="hero-copy">
             <h1>Submission Portal</h1>
-            <p>
-              A submission portal for bold, multidisciplinary feminist work across
-              writing, visuals, and hybrid forms.
-            </p>
+            <div className="hero-description">
+              <p>
+                RAGE Zine is a global multidisciplinary print and digital zine &amp; platform exploring the theme of feminist rage.
+              </p>
+              <p>
+                We are looking for submissions of all kinds of writing, art &amp; content about feminist rage or showcasing feminist rage. Multidisciplinarity is a core value for us, so we are looking for pieces covering a range of topics and disciplines, including politics, literature, art, gender, LGBTQIA+ rights, global health, science, education, psychology, sexuality, visual culture and more. We also publish a range of forms and mediums, including but not limited to articles, poems, photography, painting, comics, collage, film stills and digital art.
+              </p>
+              <p>
+                We particularly encourage submissions to go beyond the obvious scope of theme and are particularly keen on experimental, bold and fresh feminist work.
+              </p>
+              <p>
+                We are primarily looking for finalised submissions, but do not hesitate to get in touch if you have an idea and would like some feedback or support creating your piece. We also reach out to select creators for commissioned pieces and/or interviews.
+              </p>
+              <p>
+                Please note that we are a fully not-for-profit and volunteer driven platform and this is an unpaid opportunity.
+              </p>
+            </div>
           </div>
         </div>
       </section>
