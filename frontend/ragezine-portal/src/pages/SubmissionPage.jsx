@@ -407,9 +407,7 @@ export default function SubmissionPage() {
               <div className="guideline-card">
                 <p>
                   <span className="sub">Filename:</span><br />
-                  <span style={{ fontFamily: "NewEdge666Slanted, sans-serif" }}>
-                    Artist-Name_Artwork-Title
-                  </span>
+                  Artist-Name_Artwork-Title
                 </p>
               </div>
             </div>
