@@ -270,7 +270,7 @@ export default function SubmissionPage() {
       <section className="hero" id="home">
         <div className="hero-panel">
           <div className="hero-copy">
-            <h1 className="hero-title" aria-label="RAGE Zine submission portal.">
+            <h1 className="hero-title" aria-label="RAGE ZINE SUBMISSION PORTAL.">
               <span className="hero-wordmark" aria-hidden="true">
                 <span className="hero-wordmark-rage">
                   <span className="hero-letter-heavy">R</span>
@@ -280,12 +280,12 @@ export default function SubmissionPage() {
                 </span>
                 <span className="hero-wordmark-zine">
                   <span className="hero-letter-light">Z</span>
-                  <span className="hero-letter-heavy">i</span>
-                  <span className="hero-letter-heavy">n</span>
-                  <span className="hero-letter-light">e</span>
+                  <span className="hero-letter-heavy">I</span>
+                  <span className="hero-letter-heavy">N</span>
+                  <span className="hero-letter-light">E</span>
                 </span>
               </span>
-              <span className="hero-title-suffix">submission portal.</span>
+              <span className="hero-title-suffix">SUBMISSION PORTAL.</span>
             </h1>
             <div className="hero-description">
               <p>
