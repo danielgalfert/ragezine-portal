@@ -84,6 +84,11 @@
   font-family: "NewEdge666UltraBoldSlanted", sans-serif;
 }
 
+.hero-letter-pair {
+  letter-spacing: 0.015em;
+  transform: scaleY(1.05);
+}
+
 .hero-letter-regular {
   font-family: "NewEdge666", sans-serif;
   transform: scaleX(1.15);

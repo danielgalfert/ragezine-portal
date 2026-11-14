@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -6,6 +7,13 @@ import SubmissionPage from "./pages/SubmissionPage";
 import SubmissionDetailsPage from "./pages/SubmissionDetailsPage";
 
 export default function App() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const isAdminPage = pathname === "/login" || pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+    document.title = isAdminPage ? "RAGE Zine admin portal" : "RAGE Zine submission portal";
+  }, [pathname]);
+
   return (
     <Routes>
       <Route
