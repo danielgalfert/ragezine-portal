@@ -316,8 +316,7 @@ export default function SubmissionPage() {
               <div className="guideline-card">
                 <p>
                   <span className="sub">Language:</span><br />
-                  English is preferred, but submissions in other languages are welcome
-                  if they can be accompanied by an English translation.
+                  English is preferred, but we occasionally accept submissions in other languages, if you are happy for the piece to be accompanied by an English translation. Our team can help with translations in numerous languages.
                 </p>
               </div>
 
