@@ -63,10 +63,17 @@
   text-wrap: balance;
 }
 
-.hero-copy p {
-  max-width: 26rem;
-  margin-top: 22px;
-  text-align: center;
+.hero-description {
+  display: grid;
+  gap: 1rem;
+  width: min(68ch, 100%);
+  margin-top: 30px;
+  text-align: left;
+}
+
+.hero-copy .hero-description p {
+  font-size: clamp(16px, 1.5vw, 20px);
+  line-height: 1.55;
   color: #000;
 }
 
@@ -228,7 +235,7 @@
     font-size: clamp(2.125rem, calc(16vw - 17px), 4.75rem);
   }
 
-  .hero-copy p {
+  .hero-description {
     margin-top: 18px;
   }
 
