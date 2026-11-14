@@ -349,16 +349,17 @@ class SubmissionSerializer(serializers.ModelSerializer):
         visuals = []
         text_links = []
         visual_links = []
+        video_links = []
         if request:
             allowed_fields = {
                 name for name, field in self.fields.items() if not field.read_only
-            } | {"text_files", "visuals", "text_links", "visual_links"}
+            } | {"text_files", "visuals", "text_links", "visual_links", "video_links"}
             unknown_fields = set(request.data) - allowed_fields
             if unknown_fields:
                 raise serializers.ValidationError("Unknown submission fields were provided.")
             text_files = request.FILES.getlist("text_files")
             visuals = request.FILES.getlist("visuals")
-            for field_name, links in (("text_links", text_links), ("visual_links", visual_links)):
+            for field_name, links in (("text_links", text_links), ("visual_links", visual_links), ("video_links", video_links)):
                 if self.instance is not None and field_name in request.data:
                     raise serializers.ValidationError({field_name: "Links cannot be changed here."})
                 for url in submitted_links(request.data, field_name):
@@ -370,13 +371,14 @@ class SubmissionSerializer(serializers.ModelSerializer):
         self.validated_links = {
             SubmissionLink.LinkType.TEXT: text_links,
             SubmissionLink.LinkType.VISUAL: visual_links,
+            SubmissionLink.LinkType.VIDEO: video_links,
         }
 
         if len(text_files) + len(text_links) > settings.SUBMISSION_MAX_TEXT_FILES:
             field = "text_links" if text_links else "text_files"
             raise serializers.ValidationError({field: "Too many text files or links."})
-        if len(visuals) + len(visual_links) > settings.SUBMISSION_MAX_VISUAL_FILES:
-            field = "visual_links" if visual_links else "visuals"
+        if len(visuals) + len(visual_links) + len(video_links) > settings.SUBMISSION_MAX_VISUAL_FILES:
+            field = "video_links" if video_links else "visual_links" if visual_links else "visuals"
             raise serializers.ValidationError({field: "Too many visual or video files or links."})
 
         file_limit = settings.SUBMISSION_MAX_FILE_BYTES
@@ -397,7 +399,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             )
 
         # A new submission needs at least one file or link.
-        if self.instance is None and not any((text_files, visuals, text_links, visual_links)):
+        if self.instance is None and not any((text_files, visuals, text_links, visual_links, video_links)):
             raise serializers.ValidationError(
                 "A submission must include a file or link."
             )

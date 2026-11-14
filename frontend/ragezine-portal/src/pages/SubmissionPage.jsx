@@ -48,12 +48,15 @@ function countWords(s) {
 export default function SubmissionPage() {
   const textFileInputRef = useRef(null);
   const visualFileInputRef = useRef(null);
+  const videoFileInputRef = useRef(null);
   const [form, setForm] = useState(initialForm);
   const [socialInput, setSocialInput] = useState("");
   const [textFiles, setTextFiles] = useState([]);
   const [visualFiles, setVisualFiles] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
   const [textLinks, setTextLinks] = useState([""]);
   const [visualLinks, setVisualLinks] = useState([""]);
+  const [videoLinks, setVideoLinks] = useState([""]);
   const [submitPopup, setSubmitPopup] = useState({
     open: false,
     kind: "success",
@@ -96,15 +99,27 @@ export default function SubmissionPage() {
     setVisualFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  function onPickVideos(fileList) {
+    const picked = Array.from(fileList || []);
+    setVideoFiles((prev) => [...prev, ...picked].slice(0, MAX_VISUALS));
+  }
+
+  function removeVideo(idx) {
+    setVideoFiles((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   function clearAll() {
     setForm(initialForm);
     setSocialInput("");
     setTextFiles([]);
     setVisualFiles([]);
+    setVideoFiles([]);
     setTextLinks([""]);
     setVisualLinks([""]);
+    setVideoLinks([""]);
     if (textFileInputRef.current) textFileInputRef.current.value = "";
     if (visualFileInputRef.current) visualFileInputRef.current.value = "";
+    if (videoFileInputRef.current) videoFileInputRef.current.value = "";
   }
 
   function openPopup(kind, title, messages) {
@@ -169,10 +184,11 @@ export default function SubmissionPage() {
   }
 
   function linkFields(type) {
-    const links = type === "text" ? textLinks : visualLinks;
-    const setLinks = type === "text" ? setTextLinks : setVisualLinks;
+    const links = type === "text" ? textLinks : type === "visual" ? visualLinks : videoLinks;
+    const setLinks = type === "text" ? setTextLinks : type === "visual" ? setVisualLinks : setVideoLinks;
     const limit = type === "text" ? MAX_TEXT_ATTACHMENTS : MAX_VISUALS;
-    const fileCount = type === "text" ? textFiles.length : visualFiles.length;
+    const otherAttachmentCount = type === "text" ? textFiles.length :
+      visualFiles.length + videoFiles.length + (type === "visual" ? videoLinks : visualLinks).filter((url) => url.trim()).length;
     return (
       <div className="portal-link-fields">
         {links.map((url, index) => (
@@ -181,7 +197,7 @@ export default function SubmissionPage() {
               className="portal-input"
               type="url"
               inputMode="url"
-              aria-label={`${type === "text" ? "Text" : "Visual or video"} link ${index + 1}`}
+              aria-label={`${type === "text" ? "Text" : type === "visual" ? "Visual" : "Video"} link ${index + 1}`}
               placeholder="https://..."
               value={url}
               onChange={(event) => setLinks((prev) => prev.map((item, itemIndex) => itemIndex === index ? event.target.value : item))}
@@ -193,7 +209,7 @@ export default function SubmissionPage() {
             )}
           </div>
         ))}
-        {links.length + fileCount < limit && (
+        {links.length + otherAttachmentCount < limit && (
           <button type="button" className="smallBtn portal-add-link" onClick={() => setLinks((prev) => [...prev, ""])}>
             add another link
           </button>
@@ -252,9 +268,13 @@ export default function SubmissionPage() {
     visualFiles.forEach((file) => {
       fd.append("visuals", file);
     });
+    videoFiles.forEach((file) => {
+      fd.append("visuals", file);
+    });
 
     textLinks.map((url) => url.trim()).filter(Boolean).forEach((url) => fd.append("text_links", url));
     visualLinks.map((url) => url.trim()).filter(Boolean).forEach((url) => fd.append("visual_links", url));
+    videoLinks.map((url) => url.trim()).filter(Boolean).forEach((url) => fd.append("video_links", url));
 
     return fd;
   }
@@ -269,7 +289,7 @@ export default function SubmissionPage() {
     if (!isLikelyEmail(form.email)) return "Please provide a valid email address.";
     if (!form.country_origin.trim()) return "Please provide countries of origin.";
     if (!form.countries_residence.length) return "Please provide countries of residence.";
-    const links = [...textLinks, ...visualLinks].map((url) => url.trim()).filter(Boolean);
+    const links = [...textLinks, ...visualLinks, ...videoLinks].map((url) => url.trim()).filter(Boolean);
     if (links.some((url) => {
       try {
         const parsed = new URL(url);
@@ -279,8 +299,8 @@ export default function SubmissionPage() {
       }
     })) return "Use complete HTTPS links for your work.";
     if (textFiles.length + textLinks.filter((url) => url.trim()).length > MAX_TEXT_ATTACHMENTS) return `Add at most ${MAX_TEXT_ATTACHMENTS} text files or links.`;
-    if (visualFiles.length + visualLinks.filter((url) => url.trim()).length > MAX_VISUALS) return `Add at most ${MAX_VISUALS} visual or video files or links.`;
-    if (!textFiles.length && !visualFiles.length && !links.length) return "Add at least one file or link.";
+    if (visualFiles.length + videoFiles.length + [...visualLinks, ...videoLinks].filter((url) => url.trim()).length > MAX_VISUALS) return `Add at most ${MAX_VISUALS} visual or video files or links.`;
+    if (!textFiles.length && !visualFiles.length && !videoFiles.length && !links.length) return "Add at least one file or link.";
 
     return "";
   }
@@ -377,7 +397,8 @@ export default function SubmissionPage() {
                 <p>
                   <span className="sub">Format:</span><br />
                   Text: Word, Google Doc or PDF (max. {MAX_WORDS_TEXT} words)<br />
-                  Visuals: TIFF and 300 dpi; video: MP4, MOV, or WebM (max. {MAX_VISUALS} files)
+                  Visual: TIFF at 300 dpi, or link<br />
+                  Video: MP4, MOV, or WebM, or link (max. {MAX_VISUALS} visual and video files or links in total)
                 </p>
               </div>
 
@@ -525,8 +546,8 @@ export default function SubmissionPage() {
                 <div className="portal-help">Set access so the RAGE Zine team can open your work.</div>
               </FormField>
 
-              <FormField label={`Visuals or video upload - up to ${MAX_VISUALS} files`}>
-                <input ref={visualFileInputRef} className="portal-file" type="file" accept="image/*,video/*,.heic,.heif" multiple onChange={(e) => onPickVisuals(e.target.files)} />
+              <FormField label="Visual upload (TIFF)">
+                <input ref={visualFileInputRef} className="portal-file" type="file" accept=".tif,.tiff" multiple onChange={(e) => onPickVisuals(e.target.files)} />
 
                 {visualFiles.length > 0 && (
                   <ul className="portal-filelist">
@@ -542,8 +563,30 @@ export default function SubmissionPage() {
                 )}
               </FormField>
 
-              <FormField label="Visual or video link">
+              <FormField label="Visual link">
                 {linkFields("visual")}
+                <div className="portal-help">Set access so the RAGE Zine team can open your work.</div>
+              </FormField>
+
+              <FormField label="Video upload (MP4 / MOV / WebM)">
+                <input ref={videoFileInputRef} className="portal-file" type="file" accept=".mp4,.mov,.webm" multiple onChange={(e) => onPickVideos(e.target.files)} />
+
+                {videoFiles.length > 0 && (
+                  <ul className="portal-filelist">
+                    {videoFiles.map((file, idx) => (
+                      <li key={`${file.name}-${idx}`}>
+                        <span>{file.name}</span>
+                        <button type="button" className="smallBtn" onClick={() => removeVideo(idx)}>
+                          x
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </FormField>
+
+              <FormField label="Video link">
+                {linkFields("video")}
                 <div className="portal-help">Set access so the RAGE Zine team can open your work.</div>
               </FormField>
 

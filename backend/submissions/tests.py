@@ -96,7 +96,8 @@ class SubmissionValidationTests(TestCase):
             "https://docs.google.com/document/d/first/edit",
             "https://example.com/poem.pdf",
         ]
-        payload["visual_links"] = ["https://example.com/film"]
+        payload["visual_links"] = ["https://example.com/artwork"]
+        payload["video_links"] = ["https://example.com/film"]
 
         with patch("submissions.api.submission_views.send_submission_receipt"):
             response = self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.210")
@@ -104,13 +105,14 @@ class SubmissionValidationTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         submission = Submission.objects.get(pk=response.data["id"])
         self.assertFalse(submission.documents.exists())
-        self.assertEqual(submission.links.count(), 3)
+        self.assertEqual(submission.links.count(), 4)
         self.assertEqual(
             list(submission.links.values_list("link_type", "url")),
             [
                 (SubmissionLink.LinkType.TEXT, "https://docs.google.com/document/d/first/edit"),
                 (SubmissionLink.LinkType.TEXT, "https://example.com/poem.pdf"),
-                (SubmissionLink.LinkType.VISUAL, "https://example.com/film"),
+                (SubmissionLink.LinkType.VISUAL, "https://example.com/artwork"),
+                (SubmissionLink.LinkType.VIDEO, "https://example.com/film"),
             ],
         )
         self.assertEqual(self.client.get(f"/api/submissions/{submission.pk}/").status_code, 403)
@@ -118,12 +120,12 @@ class SubmissionValidationTests(TestCase):
         self.client.force_authenticate(staff)
         detail = self.client.get(f"/api/submissions/{submission.pk}/")
         self.assertEqual(detail.status_code, 200)
-        self.assertEqual(len(detail.data["links"]), 3)
+        self.assertEqual(len(detail.data["links"]), 4)
 
     def test_files_and_links_can_be_submitted_together(self):
         payload = self.base_payload()
         payload["email"] = "artist@example.com"
-        payload["visual_links"] = "https://example.com/video"
+        payload["video_links"] = "https://example.com/video"
 
         with patch("submissions.api.submission_views.send_submission_receipt"):
             response = self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.211")
@@ -132,6 +134,7 @@ class SubmissionValidationTests(TestCase):
         submission = Submission.objects.get(pk=response.data["id"])
         self.assertEqual(submission.documents.count(), 1)
         self.assertEqual(submission.links.count(), 1)
+        self.assertEqual(submission.links.get().link_type, SubmissionLink.LinkType.VIDEO)
 
     def test_combined_attachment_limit_and_required_attachment(self):
         payload = self.base_payload()
@@ -149,6 +152,21 @@ class SubmissionValidationTests(TestCase):
             "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.213",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Submission.objects.exists())
+
+    def test_visual_and_video_links_share_attachment_limit(self):
+        payload = self.base_payload()
+        payload.pop("text_files")
+        payload["email"] = "artist@example.com"
+        payload["visual_links"] = [f"https://example.com/art/{index}" for index in range(3)]
+        payload["video_links"] = [f"https://example.com/video/{index}" for index in range(3)]
+
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.214",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("video_links", response.data)
         self.assertFalse(Submission.objects.exists())
 
     def test_rejects_unsafe_submission_links_without_saving(self):
