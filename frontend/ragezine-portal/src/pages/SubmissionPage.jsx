@@ -323,7 +323,7 @@ export default function SubmissionPage() {
               <div className="guideline-card">
                 <p>
                   <span className="sub">Format:</span><br />
-                  Text: Word or PDF (max. {MAX_WORDS_TEXT} words)<br />
+                  Text: Word, Google Doc or PDF (max. {MAX_WORDS_TEXT} words)<br />
                   Visuals: TIFF and 300 dpi; video: MP4, MOV, or WebM (max. {MAX_VISUALS} files)
                 </p>
               </div>
