@@ -88,6 +88,35 @@ class SubmissionValidationTests(TestCase):
             "text_files": SimpleUploadedFile("poem.pdf", pdf_bytes(), content_type="application/pdf"),
         }
 
+    def test_accepts_multiple_and_custom_pronoun_tags(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["pronouns"] = "she/her, they/them, fae/faer, SHE/HER"
+
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.215",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            Submission.objects.get(pk=response.data["id"]).pronouns,
+            "she/her, they/them, fae/faer",
+        )
+
+    def test_rejects_empty_or_oversized_pronoun_tags(self):
+        for index, value in enumerate(("she/her, , they/them", "a" * 41, ", ".join(f"tag{number}" for number in range(11)))):
+            with self.subTest(value=value):
+                payload = self.base_payload()
+                payload["email"] = "artist@example.com"
+                payload["pronouns"] = value
+                response = self.client.post(
+                    "/api/submissions/", payload, format="multipart",
+                    REMOTE_ADDR=f"198.51.100.{216 + index}",
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("pronouns", response.data)
+
     def test_link_only_submission_stores_several_links_for_staff(self):
         payload = self.base_payload()
         payload.pop("text_files")

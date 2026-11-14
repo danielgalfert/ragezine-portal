@@ -45,7 +45,7 @@ class Submission(models.Model):
     volume = models.IntegerField(default=VOLUME_NUMBER)
 
     artist_name = models.CharField(max_length=255)
-    pronouns = models.CharField(max_length=128)
+    pronouns = models.CharField(max_length=500)
     short_bio = models.TextField()
 
     socials = models.CharField(max_length=500, blank=True)
