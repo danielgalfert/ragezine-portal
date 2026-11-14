@@ -355,7 +355,7 @@ export default function SubmissionDetailsPage() {
                           aria-pressed={file.id === selectedFileId}
                         >
                           <strong>{file.original_filename || `File ${file.id}`}</strong>
-                          <span>{file.document_type} · {formatFileSize(file.size)}</span>
+                          <span>{file.preview_kind === "video" ? "Video" : file.document_type === "visual" ? "Visual" : "Text"} · {formatFileSize(file.size)}</span>
                         </button>
                       ))}
                     </div>
@@ -376,7 +376,7 @@ export default function SubmissionDetailsPage() {
                   <ul className="details-link-list">
                     {links.map((link) => (
                       <li key={link.id}>
-                        <span>{link.link_type === "text" ? "Text" : "Visual or video"}</span>
+                        <span>{link.link_type === "text" ? "Text" : link.link_type === "video" ? "Video" : "Visual"}</span>
                         <a href={link.url} target="_blank" rel="noopener noreferrer">{link.url}</a>
                       </li>
                     ))}

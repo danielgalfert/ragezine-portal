@@ -125,7 +125,8 @@ class SubmissionDocument(models.Model):
 class SubmissionLink(models.Model):
     class LinkType(models.TextChoices):
         TEXT = "text", "Text"
-        VISUAL = "visual", "Visual or video"
+        VISUAL = "visual", "Visual"
+        VIDEO = "video", "Video"
 
     submission = models.ForeignKey(
         Submission,
