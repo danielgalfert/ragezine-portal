@@ -88,6 +88,34 @@ class SubmissionValidationTests(TestCase):
             "text_files": SimpleUploadedFile("poem.pdf", pdf_bytes(), content_type="application/pdf"),
         }
 
+    def test_accepts_several_countries_of_origin(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["country_origin"] = ["DK", "DE", "DK"]
+
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.219",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Submission.objects.get(pk=response.data["id"]).country_origin, "DK,DE")
+        self.assertEqual(response.data["country_origin"], ["DK", "DE"])
+        self.assertEqual(response.data["country_origin_names"], ["Denmark", "Germany"])
+
+    def test_rejects_invalid_country_of_origin(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["country_origin"] = ["DK", "ZZ"]
+
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.220",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("country_origin", response.data)
+        self.assertFalse(Submission.objects.exists())
+
     def test_accepts_multiple_and_custom_pronoun_tags(self):
         payload = self.base_payload()
         payload["email"] = "artist@example.com"
@@ -550,7 +578,7 @@ class SubmissionDownloadsTests(TestCase):
             short_bio="A short but valid bio for export testing.",
             socials="@artist",
             email="artist@example.com",
-            country_origin="DK",
+            country_origin="DK,DE",
             countries_residence=["DK"],
             language="English",
             allow_translation=True,
@@ -593,6 +621,7 @@ class SubmissionDownloadsTests(TestCase):
             details = archive.read(f"{root}/submission_details.txt").decode("utf-8")
             self.assertIn("Title: Archive Piece", details)
             self.assertIn("Email: artist@example.com", details)
+            self.assertIn("Country of Origin: Denmark, Germany", details)
             self.assertIn("- legacy.txt", details)
             self.assertIn("- poem.pdf", details)
             self.assertIn("- image.tiff", details)
@@ -637,7 +666,7 @@ class SubmissionDownloadsTests(TestCase):
             short_bio="A short but valid bio for spreadsheet export.",
             socials="@artist-two",
             email="artist.two@example.com",
-            country_origin="DK",
+            country_origin="DK,DE",
             countries_residence=["DE"],
             language="English",
             allow_translation=False,
@@ -707,7 +736,7 @@ class SubmissionDownloadsTests(TestCase):
         self.assertEqual(submission_row[4], "Long form writing")
         self.assertEqual(submission_row[5], "Artist Two")
         self.assertEqual(submission_row[9], "artist.two@example.com")
-        self.assertEqual(submission_row[10], "Denmark")
+        self.assertEqual(submission_row[10], "Denmark, Germany")
         self.assertEqual(submission_row[11], "Germany")
         self.assertEqual(submission_row[14], "for review, selected")
         self.assertEqual(submission_row[15:19], [1, 0, 1, 2])

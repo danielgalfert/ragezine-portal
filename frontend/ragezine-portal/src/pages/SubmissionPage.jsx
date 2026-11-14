@@ -47,7 +47,7 @@ const initialForm = {
   short_bio: "",
   socials: [],
   email: "",
-  country_origin: "",
+  country_origin: [],
   countries_residence: [],
   language: "English",
 };
@@ -92,11 +92,7 @@ export default function SubmissionPage() {
       nextValue = value;
     }
 
-    if (key === "country_origin") {
-      nextValue = sanitizeCountryCode(value);
-    }
-
-    if (key === "countries_residence" && Array.isArray(value)) {
+    if (["country_origin", "countries_residence"].includes(key) && Array.isArray(value)) {
       nextValue = value.map(sanitizeCountryCode);
     }
 
@@ -275,7 +271,7 @@ export default function SubmissionPage() {
       short_bio: sanitizeMultiline(form.short_bio),
       socials: form.socials.map(sanitizeSingleLine).filter(Boolean),
       email: sanitizeSingleLine(form.email).toLowerCase(),
-      country_origin: sanitizeCountryCode(form.country_origin),
+      country_origin: form.country_origin.map(sanitizeCountryCode),
       countries_residence: form.countries_residence.map(sanitizeCountryCode),
       language: sanitizeSingleLine(form.language),
     };
@@ -332,7 +328,7 @@ export default function SubmissionPage() {
     if (!form.short_bio.trim()) return "Please provide a short bio (2-3 sentences).";
     if (!form.email.trim()) return "Please provide an email address.";
     if (!isLikelyEmail(form.email)) return "Please provide a valid email address.";
-    if (!form.country_origin.trim()) return "Please provide countries of origin.";
+    if (!form.country_origin.length) return "Please provide countries of origin.";
     if (!form.countries_residence.length) return "Please provide countries of residence.";
     const links = [...textLinks, ...visualLinks, ...videoLinks].map((url) => url.trim()).filter(Boolean);
     if (links.some((url) => {
@@ -546,8 +542,8 @@ export default function SubmissionPage() {
                   )}
                 </FormField>
 
-                <FormField label="Country of origin *">
-                  <CountrySelect value={form.country_origin} onChange={(countryCode) => update("country_origin", countryCode)} />
+                <FormField label="Countries of origin *">
+                  <CountrySelect value={form.country_origin} onChange={(countries) => update("country_origin", countries)} isMulti />
                 </FormField>
 
                 <FormField label="Countries of residence *">

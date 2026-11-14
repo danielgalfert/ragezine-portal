@@ -66,9 +66,24 @@ def country_name(code):
     return country.name if country else code
 
 
+def origin_codes(value):
+    if isinstance(value, str):
+        return [code.strip() for code in value.split(",") if code.strip()]
+    return list(value or [])
+
+
 def is_valid_country_code(code):
     return pycountry.countries.get(alpha_2=code) is not None
 
+
+class CountryOriginField(serializers.ListField):
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            data = origin_codes(data)
+        return super().to_internal_value(data)
+
+    def to_representation(self, value):
+        return super().to_representation(origin_codes(value))
 
 
 class SubmissionDocumentSerializer(serializers.ModelSerializer):
@@ -168,10 +183,15 @@ class SubmissionSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True, allow_blank=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     short_bio = serializers.CharField(max_length=4000)
-    country_origin = serializers.CharField(max_length=2)
+    country_origin = CountryOriginField(
+        child=serializers.CharField(max_length=2),
+        allow_empty=False,
+        max_length=20,
+    )
 
     countries_residence_names = serializers.SerializerMethodField()
     country_origin_name = serializers.SerializerMethodField()
+    country_origin_names = serializers.SerializerMethodField()
     countries_residence = serializers.ListField(
         child=serializers.CharField(max_length=2),
         required=False,
@@ -199,6 +219,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "email",
             "country_origin",
             "country_origin_name",
+            "country_origin_names",
             "countries_residence",
             "countries_residence_names",
             "language",
@@ -230,7 +251,10 @@ class SubmissionSerializer(serializers.ModelSerializer):
         return [country_name(code) for code in obj.countries_residence]
 
     def get_country_origin_name(self, obj):
-        return country_name(obj.country_origin)
+        return ", ".join(self.get_country_origin_names(obj))
+
+    def get_country_origin_names(self, obj):
+        return [country_name(code) for code in origin_codes(obj.country_origin)]
 
     def validate_title(self, value):
         value = sanitize_single_line(value)
@@ -310,12 +334,14 @@ class SubmissionSerializer(serializers.ModelSerializer):
         return value
 
     def validate_country_origin(self, value):
-        value = sanitize_single_line(value).upper()
-        if not is_valid_country_code(value):
-            raise serializers.ValidationError(
-                "countries_origin must be one valid country name in English."
-            )
-        return value
+        sanitized = []
+        for country in value:
+            country = sanitize_single_line(country).upper()
+            if not is_valid_country_code(country):
+                raise serializers.ValidationError(f"'{country}' is not a valid country of origin.")
+            if country not in sanitized:
+                sanitized.append(country)
+        return ",".join(sanitized)
 
     def validate_countries_residence(self, value):
         sanitized = []

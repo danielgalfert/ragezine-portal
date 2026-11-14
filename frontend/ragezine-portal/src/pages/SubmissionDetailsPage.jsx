@@ -291,7 +291,7 @@ export default function SubmissionDetailsPage() {
                   <Detail label="Volume" value={submission.volume} />
                   <Detail label="Year" value={submission.year} />
                   <Detail label="Language" value={submission.language} />
-                  <Detail label="Country of origin" value={submission.country_origin_name || submission.country_origin} />
+                  <Detail label="Countries of origin" value={submission.country_origin_names?.join(", ") || submission.country_origin_name} />
                   <Detail label="Residence" value={submission.countries_residence_names?.join(", ")} />
                   <Detail label="Submitted" value={formatDate(submission.created_at)} />
                   <Detail label="Updated" value={formatDate(submission.updated_at)} />
