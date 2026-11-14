@@ -173,6 +173,15 @@
   min-width: 0;
 }
 
+.portal-link-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.portal-add-link {
+  justify-self: start;
+}
+
 .portal-inline-entry .portal-input {
   flex: 1 1 auto;
   min-width: 0;

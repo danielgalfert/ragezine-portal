@@ -83,6 +83,10 @@ def _format_submission_details(submission):
 
     if not attached_files:
         attached_files = ["-"]
+    attached_links = [
+        f"{link.get_link_type_display()}: {link.url}"
+        for link in submission.links.all()
+    ] or ["-"]
 
     lines = [
         f"Submission ID: {submission.id}",
@@ -104,6 +108,8 @@ def _format_submission_details(submission):
         "Files:",
     ]
     lines.extend(f"- {filename}" for filename in attached_files)
+    lines.append("Links:")
+    lines.extend(f"- {link}" for link in attached_links)
     return "\n".join(lines) + "\n"
 
 
@@ -165,6 +171,7 @@ def _build_excel_workbook():
     submissions = list(
         submission_repository.list().prefetch_related(
             "tags",
+            "links",
             Prefetch(
                 "votes",
                 queryset=SubmissionVote.objects.filter(
@@ -237,6 +244,23 @@ def _build_excel_workbook():
             ])
     for column_letter, width in zip("ABCDEF", (16, 36, 24, 26, 18, 23)):
         votes_sheet.column_dimensions[column_letter].width = width
+
+    links_sheet = workbook.create_sheet(title="Links")
+    links_sheet.freeze_panes = "A2"
+    links_sheet.append(["Submission ID", "Submission Title", "Type", "Link"])
+    for cell in links_sheet[1]:
+        cell.font = Font(bold=True)
+        cell.alignment = header_alignment
+    for submission in submissions:
+        for link in submission.links.all():
+            links_sheet.append([
+                submission.id,
+                _safe_excel_text(submission.title),
+                link.get_link_type_display(),
+                _safe_excel_text(link.url),
+            ])
+    for column_letter, width in zip("ABCD", (16, 36, 18, 80)):
+        links_sheet.column_dimensions[column_letter].width = width
 
     workbook.save(buffer)
     buffer.seek(0)

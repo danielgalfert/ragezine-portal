@@ -316,11 +316,16 @@ export default function DashboardSubmissionsList() {
                         {submission.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}
                       </div>
                     )}
-                    {submission.documents?.length > 0 && (
+                    {(submission.documents?.length > 0 || submission.links?.length > 0) && (
                       <div className="dashboard-document-list">
-                        {submission.documents.map((document) => (
+                        {submission.documents?.map((document) => (
                           <a key={document.id} href={document.download_url} title={`Download ${document.original_filename}`}>
                             {document.original_filename || `Document ${document.id}`}
+                          </a>
+                        ))}
+                        {submission.links?.map((link) => (
+                          <a key={`link-${link.id}`} href={link.url} target="_blank" rel="noopener noreferrer" title={`Open ${link.link_type} link`}>
+                            {link.url}
                           </a>
                         ))}
                       </div>

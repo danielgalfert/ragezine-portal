@@ -122,6 +122,27 @@ class SubmissionDocument(models.Model):
         )
 
 
+class SubmissionLink(models.Model):
+    class LinkType(models.TextChoices):
+        TEXT = "text", "Text"
+        VISUAL = "visual", "Visual or video"
+
+    submission = models.ForeignKey(
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="links",
+    )
+    link_type = models.CharField(max_length=16, choices=LinkType.choices)
+    url = models.URLField(max_length=2048)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.get_link_type_display()} link for {self.submission_id}: {self.url}"
+
+
 class SubmissionComment(models.Model):
     submission = models.ForeignKey(
         Submission,

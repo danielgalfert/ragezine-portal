@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from submissions.api.email import send_submission_receipt
 from submissions.api.throttles import SubmissionCreateThrottle
-from submissions.models import SubmissionDocument, SubmissionVote, Tag
+from submissions.models import SubmissionDocument, SubmissionLink, SubmissionVote, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 from submissions.serializers import (
     SubmissionCommentSerializer,
@@ -48,7 +48,7 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         return super().get_throttles()
 
     def get_queryset(self):
-        return self.submission_repository.list().prefetch_related("documents").annotate(
+        return self.submission_repository.list().prefetch_related("documents", "links").annotate(
             yes_vote_count=Count(
                 "votes", filter=Q(votes__choice=SubmissionVote.Choice.YES)
             ),
@@ -105,6 +105,12 @@ class SubmissionViewSet(viewsets.ModelViewSet):
                     submission=submission,
                     uploaded_file=image,
                 )
+
+            for link_type, urls in serializer.validated_links.items():
+                SubmissionLink.objects.bulk_create([
+                    SubmissionLink(submission=submission, link_type=link_type, url=url)
+                    for url in urls
+                ])
 
         try:
             send_submission_receipt(submission)

@@ -258,6 +258,7 @@ export default function SubmissionDetailsPage() {
   }
 
   const files = submission?.documents || [];
+  const links = submission?.links || [];
   const selectedFile = files.find((file) => file.id === selectedFileId) || null;
 
   return (
@@ -366,6 +367,20 @@ export default function SubmissionDetailsPage() {
                       <div className="details-preview"><Preview key={selectedFile?.id} document={selectedFile} /></div>
                     </div>
                   </div>
+                )}
+              </section>
+
+              <section className="details-card" aria-labelledby="links-heading">
+                <h2 id="links-heading">Links ({links.length})</h2>
+                {links.length === 0 ? <p>No links are attached.</p> : (
+                  <ul className="details-link-list">
+                    {links.map((link) => (
+                      <li key={link.id}>
+                        <span>{link.link_type === "text" ? "Text" : "Visual or video"}</span>
+                        <a href={link.url} target="_blank" rel="noopener noreferrer">{link.url}</a>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </section>
 
