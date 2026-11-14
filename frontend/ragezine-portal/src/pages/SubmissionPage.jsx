@@ -65,7 +65,7 @@ export default function SubmissionPage() {
   function update(key, value) {
     let nextValue = value;
 
-    if (["title", "year", "artist_name", "submission_type", "pronouns", "email", "language"].includes(key)) {
+    if (["submission_type", "pronouns"].includes(key)) {
       nextValue = sanitizeSingleLine(value);
     }
 
@@ -347,15 +347,15 @@ export default function SubmissionPage() {
             <form className="portal-form" onSubmit={onSubmit}>
               <div className="portal-grid">
                 <FormField label="Title of your work(s) *">
-                  <input className="portal-input" value={form.title} onChange={(e) => update("title", e.target.value)} onBlur={(e) => update("title", e.target.value)} />
+                  <input className="portal-input" value={form.title} onChange={(e) => update("title", e.target.value)} onBlur={(e) => update("title", sanitizeSingleLine(e.target.value))} />
                 </FormField>
 
                 <FormField label="Year (if relevant)">
-                  <input className="portal-input" value={form.year} onChange={(e) => update("year", e.target.value)} onBlur={(e) => update("year", e.target.value)} />
+                  <input className="portal-input" value={form.year} onChange={(e) => update("year", e.target.value)} onBlur={(e) => update("year", sanitizeSingleLine(e.target.value))} />
                 </FormField>
 
                 <FormField label="Artist name *">
-                  <input className="portal-input" value={form.artist_name} onChange={(e) => update("artist_name", e.target.value)} onBlur={(e) => update("artist_name", e.target.value)} />
+                  <input className="portal-input" value={form.artist_name} onChange={(e) => update("artist_name", e.target.value)} onBlur={(e) => update("artist_name", sanitizeSingleLine(e.target.value))} />
                 </FormField>
 
                 <FormField label="Email *">
@@ -365,7 +365,7 @@ export default function SubmissionPage() {
                     autoComplete="email"
                     value={form.email}
                     onChange={(e) => update("email", e.target.value)}
-                    onBlur={(e) => update("email", e.target.value)}
+                    onBlur={(e) => update("email", sanitizeSingleLine(e.target.value))}
                     pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
                     required
                   />
@@ -445,7 +445,7 @@ export default function SubmissionPage() {
                 </FormField>
 
                 <FormField label="Language">
-                  <input className="portal-input" value={form.language} onChange={(e) => update("language", e.target.value)} onBlur={(e) => update("language", e.target.value)} />
+                  <input className="portal-input" value={form.language} onChange={(e) => update("language", e.target.value)} onBlur={(e) => update("language", sanitizeSingleLine(e.target.value))} />
                 </FormField>
               </div>
 
