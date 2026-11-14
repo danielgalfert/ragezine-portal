@@ -311,9 +311,6 @@ export default function SubmissionPage() {
         <div className="submit-shell">
           <div className="submit-intro">
             <h2>Submit</h2>
-            <p>
-              Use the form to send text, visual work, or both.
-            </p>
 
             <div className="submission-content">
               <div className="guideline-card">

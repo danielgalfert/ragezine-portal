@@ -184,15 +184,9 @@
   min-width: 0;
 }
 
-.submit-intro h2,
-.submit-intro > p {
+.submit-intro h2 {
   color: #fff;
   text-shadow: 0 2px 12px rgba(9, 5, 18, 0.45);
-}
-
-.submit-intro > p {
-  max-width: 42rem;
-  line-height: 1.45;
 }
 
 .submission-content {
