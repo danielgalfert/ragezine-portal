@@ -58,7 +58,7 @@
   display: grid;
   justify-items: center;
   gap: 0.12em;
-  font-size: clamp(2.5rem, 7vw, 6.5rem);
+  font-size: clamp(2.25rem, 5vw, 4.75rem);
   line-height: 1;
   letter-spacing: -0.025em;
 }
@@ -84,8 +84,8 @@
 }
 
 .hero-title-suffix {
-  font-size: 0.6em;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .hero-description {
@@ -257,7 +257,7 @@
   }
 
   .hero-title {
-    font-size: clamp(2rem, 10vw, 3.75rem);
+    font-size: clamp(1.5rem, 7vw, 2.5rem);
   }
 
   .hero-description {
