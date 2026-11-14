@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
-from submissions.models import Submission, SubmissionDocument, SubmissionVote, Tag
+from submissions.models import Submission, SubmissionDocument, SubmissionLink, SubmissionVote, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
@@ -87,6 +87,90 @@ class SubmissionValidationTests(TestCase):
             "allow_translation": True,
             "text_files": SimpleUploadedFile("poem.pdf", pdf_bytes(), content_type="application/pdf"),
         }
+
+    def test_link_only_submission_stores_several_links_for_staff(self):
+        payload = self.base_payload()
+        payload.pop("text_files")
+        payload["email"] = "artist@example.com"
+        payload["text_links"] = [
+            "https://docs.google.com/document/d/first/edit",
+            "https://example.com/poem.pdf",
+        ]
+        payload["visual_links"] = ["https://example.com/film"]
+
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.210")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        submission = Submission.objects.get(pk=response.data["id"])
+        self.assertFalse(submission.documents.exists())
+        self.assertEqual(submission.links.count(), 3)
+        self.assertEqual(
+            list(submission.links.values_list("link_type", "url")),
+            [
+                (SubmissionLink.LinkType.TEXT, "https://docs.google.com/document/d/first/edit"),
+                (SubmissionLink.LinkType.TEXT, "https://example.com/poem.pdf"),
+                (SubmissionLink.LinkType.VISUAL, "https://example.com/film"),
+            ],
+        )
+        self.assertEqual(self.client.get(f"/api/submissions/{submission.pk}/").status_code, 403)
+        staff = get_user_model().objects.create_user(username="reviewer", password="password", is_staff=True)
+        self.client.force_authenticate(staff)
+        detail = self.client.get(f"/api/submissions/{submission.pk}/")
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(len(detail.data["links"]), 3)
+
+    def test_files_and_links_can_be_submitted_together(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["visual_links"] = "https://example.com/video"
+
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.211")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        submission = Submission.objects.get(pk=response.data["id"])
+        self.assertEqual(submission.documents.count(), 1)
+        self.assertEqual(submission.links.count(), 1)
+
+    def test_combined_attachment_limit_and_required_attachment(self):
+        payload = self.base_payload()
+        payload["email"] = "artist@example.com"
+        payload["text_links"] = [f"https://example.com/work/{index}" for index in range(10)]
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.212",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("text_links", response.data)
+
+        payload.pop("text_files")
+        payload.pop("text_links")
+        response = self.client.post(
+            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.213",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Submission.objects.exists())
+
+    def test_rejects_unsafe_submission_links_without_saving(self):
+        for index, url in enumerate((
+            "http://example.com/file",
+            "javascript:alert(1)",
+            "https://localhost/file",
+            "https://127.0.0.1/file",
+            "https://user:pass@example.com/file",
+        )):
+            with self.subTest(url=url):
+                payload = self.base_payload()
+                payload.pop("text_files")
+                payload["email"] = "artist@example.com"
+                payload["text_links"] = url
+                response = self.client.post(
+                    "/api/submissions/", payload, format="multipart",
+                    REMOTE_ADDR=f"192.0.2.{index + 10}",
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("text_links", response.data)
+        self.assertFalse(Submission.objects.exists())
 
     def test_submission_requires_email(self):
         response = self.client.post("/api/submissions/", self.base_payload(), format="multipart")
@@ -439,6 +523,11 @@ class SubmissionDownloadsTests(TestCase):
             uploaded_file=SimpleUploadedFile("image.tiff", b"image content", content_type="image/tiff"),
             document_type=SubmissionDocument.DocumentType.VISUAL,
         )
+        SubmissionLink.objects.create(
+            submission=submission,
+            link_type=SubmissionLink.LinkType.TEXT,
+            url="https://docs.google.com/document/d/first/edit",
+        )
 
         response = self.client.get("/api/downloads/complete/")
 
@@ -460,6 +549,7 @@ class SubmissionDownloadsTests(TestCase):
             self.assertIn("- legacy.txt", details)
             self.assertIn("- poem.pdf", details)
             self.assertIn("- image.tiff", details)
+            self.assertIn("- Text: https://docs.google.com/document/d/first/edit", details)
         self.assertTrue(response.closed)
 
     def test_complete_download_separates_submissions_with_same_artist_name(self):
@@ -517,6 +607,11 @@ class SubmissionDownloadsTests(TestCase):
             voter=other_reviewer,
             choice=SubmissionVote.Choice.SEE_COMMENT,
         )
+        SubmissionLink.objects.create(
+            submission=submission,
+            link_type=SubmissionLink.LinkType.TEXT,
+            url="https://docs.google.com/document/d/second/edit",
+        )
 
         response = self.client.get("/api/downloads/excel/")
 
@@ -531,6 +626,8 @@ class SubmissionDownloadsTests(TestCase):
         self.assertIn("Poetry", workbook.sheetnames)
         self.assertIn("Long form writing", workbook.sheetnames)
         self.assertIn("Votes", workbook.sheetnames)
+        self.assertIn("Links", workbook.sheetnames)
+        self.assertEqual(workbook["Links"]["D2"].value, "https://docs.google.com/document/d/second/edit")
 
         sheet = workbook["Long form writing"]
         header_row = [cell.value for cell in sheet[1]]

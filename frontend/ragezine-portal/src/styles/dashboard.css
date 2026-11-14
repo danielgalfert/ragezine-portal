@@ -288,6 +288,7 @@
 }
 
 .dashboard-document-list a {
+  overflow-wrap: anywhere;
   color: #4d2d84;
   font-family: "NewEdge666Light", sans-serif;
   font-size: 0.84rem;

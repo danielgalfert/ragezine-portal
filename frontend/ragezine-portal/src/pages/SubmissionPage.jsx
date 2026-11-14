@@ -15,6 +15,7 @@ import "../styles/description.css";
 import "../styles/form.css";
 
 const MAX_VISUALS = 5;
+const MAX_TEXT_ATTACHMENTS = 10;
 const MAX_WORDS_TEXT = 1500;
 const SUBMISSION_TYPE_OPTIONS = [
   { value: "poetry", label: "Poetry" },
@@ -51,6 +52,8 @@ export default function SubmissionPage() {
   const [socialInput, setSocialInput] = useState("");
   const [textFiles, setTextFiles] = useState([]);
   const [visualFiles, setVisualFiles] = useState([]);
+  const [textLinks, setTextLinks] = useState([""]);
+  const [visualLinks, setVisualLinks] = useState([""]);
   const [submitPopup, setSubmitPopup] = useState({
     open: false,
     kind: "success",
@@ -98,6 +101,8 @@ export default function SubmissionPage() {
     setSocialInput("");
     setTextFiles([]);
     setVisualFiles([]);
+    setTextLinks([""]);
+    setVisualLinks([""]);
     if (textFileInputRef.current) textFileInputRef.current.value = "";
     if (visualFileInputRef.current) visualFileInputRef.current.value = "";
   }
@@ -163,6 +168,40 @@ export default function SubmissionPage() {
     setTextFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function linkFields(type) {
+    const links = type === "text" ? textLinks : visualLinks;
+    const setLinks = type === "text" ? setTextLinks : setVisualLinks;
+    const limit = type === "text" ? MAX_TEXT_ATTACHMENTS : MAX_VISUALS;
+    const fileCount = type === "text" ? textFiles.length : visualFiles.length;
+    return (
+      <div className="portal-link-fields">
+        {links.map((url, index) => (
+          <div className="portal-inline-entry" key={`${type}-link-${index}`}>
+            <input
+              className="portal-input"
+              type="url"
+              inputMode="url"
+              aria-label={`${type === "text" ? "Text" : "Visual or video"} link ${index + 1}`}
+              placeholder="https://..."
+              value={url}
+              onChange={(event) => setLinks((prev) => prev.map((item, itemIndex) => itemIndex === index ? event.target.value : item))}
+            />
+            {links.length > 1 && (
+              <button type="button" className="smallBtn portal-inline-btn" onClick={() => setLinks((prev) => prev.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove link ${index + 1}`}>
+                remove
+              </button>
+            )}
+          </div>
+        ))}
+        {links.length + fileCount < limit && (
+          <button type="button" className="smallBtn portal-add-link" onClick={() => setLinks((prev) => [...prev, ""])}>
+            add another link
+          </button>
+        )}
+      </div>
+    );
+  }
+
   function buildSubmissionFormData() {
     const fd = new FormData();
     const normalizedForm = {
@@ -214,6 +253,9 @@ export default function SubmissionPage() {
       fd.append("visuals", file);
     });
 
+    textLinks.map((url) => url.trim()).filter(Boolean).forEach((url) => fd.append("text_links", url));
+    visualLinks.map((url) => url.trim()).filter(Boolean).forEach((url) => fd.append("visual_links", url));
+
     return fd;
   }
 
@@ -227,7 +269,18 @@ export default function SubmissionPage() {
     if (!isLikelyEmail(form.email)) return "Please provide a valid email address.";
     if (!form.country_origin.trim()) return "Please provide countries of origin.";
     if (!form.countries_residence.length) return "Please provide countries of residence.";
-    if (visualFiles.length > MAX_VISUALS) return `Too many visual or video files. Max ${MAX_VISUALS}.`;
+    const links = [...textLinks, ...visualLinks].map((url) => url.trim()).filter(Boolean);
+    if (links.some((url) => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol !== "https:" || !parsed.hostname;
+      } catch {
+        return true;
+      }
+    })) return "Use complete HTTPS links for your work.";
+    if (textFiles.length + textLinks.filter((url) => url.trim()).length > MAX_TEXT_ATTACHMENTS) return `Add at most ${MAX_TEXT_ATTACHMENTS} text files or links.`;
+    if (visualFiles.length + visualLinks.filter((url) => url.trim()).length > MAX_VISUALS) return `Add at most ${MAX_VISUALS} visual or video files or links.`;
+    if (!textFiles.length && !visualFiles.length && !links.length) return "Add at least one file or link.";
 
     return "";
   }
@@ -467,6 +520,11 @@ export default function SubmissionPage() {
                 )}
               </FormField>
 
+              <FormField label="Text link (Google Doc or other HTTPS link)">
+                {linkFields("text")}
+                <div className="portal-help">Set access so the RAGE Zine team can open your work.</div>
+              </FormField>
+
               <FormField label={`Visuals or video upload - up to ${MAX_VISUALS} files`}>
                 <input ref={visualFileInputRef} className="portal-file" type="file" accept="image/*,video/*,.heic,.heif" multiple onChange={(e) => onPickVisuals(e.target.files)} />
 
@@ -482,6 +540,11 @@ export default function SubmissionPage() {
                     ))}
                   </ul>
                 )}
+              </FormField>
+
+              <FormField label="Visual or video link">
+                {linkFields("visual")}
+                <div className="portal-help">Set access so the RAGE Zine team can open your work.</div>
               </FormField>
 
               <div style={{ marginTop: 18 }} className="portal-help">

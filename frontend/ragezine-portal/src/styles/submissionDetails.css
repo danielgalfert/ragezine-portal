@@ -130,6 +130,23 @@
   min-width: 0;
 }
 
+.details-link-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.details-link-list li {
+  display: grid;
+  gap: 4px;
+}
+
+.details-link-list a {
+  overflow-wrap: anywhere;
+}
+
 .details-file-button {
   min-width: 0;
   padding: 12px;
