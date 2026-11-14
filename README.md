@@ -24,6 +24,8 @@ Copy `.env.example` to `.env`, then set a unique `DJANGO_SECRET_KEY` and `POSTGR
 
 The backend can also run locally with SQLite by setting `DJANGO_DB_ENGINE=sqlite`; Compose explicitly selects PostgreSQL. For frontend development, run `npm run dev` in `frontend/ragezine-portal` and the Django development server in `backend`.
 
+On Windows, run `powershell -ExecutionPolicy Bypass -File .\start-local.ps1` from the project root to start both servers for local review. Open `http://127.0.0.1:5173/`. The script installs missing packages, applies SQLite migrations, and uses local file storage. Frontend edits appear at once. Restart the script after backend edits. Press Ctrl+C to stop the servers. Each worktree has its own local database.
+
 ## Submission upload limits
 
 The root `.env` sets `RAGEZINE_MAX_FILE_MB=5120` (5 GiB) for each file and
