@@ -154,20 +154,20 @@ class SubmissionValidationTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(Submission.objects.exists())
 
-    def test_visual_and_video_links_share_attachment_limit(self):
+    def test_visual_and_video_links_can_exceed_recommended_count(self):
         payload = self.base_payload()
         payload.pop("text_files")
         payload["email"] = "artist@example.com"
         payload["visual_links"] = [f"https://example.com/art/{index}" for index in range(3)]
         payload["video_links"] = [f"https://example.com/video/{index}" for index in range(3)]
 
-        response = self.client.post(
-            "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.214",
-        )
+        with patch("submissions.api.submission_views.send_submission_receipt"):
+            response = self.client.post(
+                "/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.214",
+            )
 
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("video_links", response.data)
-        self.assertFalse(Submission.objects.exists())
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Submission.objects.get(pk=response.data["id"]).links.count(), 6)
 
     def test_rejects_unsafe_submission_links_without_saving(self):
         for index, url in enumerate((
