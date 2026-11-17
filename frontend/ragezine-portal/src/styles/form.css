@@ -14,11 +14,138 @@
 .portal-form {
   width: 100%;
   min-width: 0;
-  padding: 28px;
+  padding: clamp(16px, 2vw, 28px);
   border-radius: 28px;
   background: rgba(255, 228, 255, 0.8);
   border: 1px solid rgba(5, 3, 8, 0.14);
   box-shadow: 0 24px 60px rgba(9, 5, 18, 0.16);
+  display: grid;
+  gap: 24px;
+}
+
+.portal-form-block,
+.portal-work-card {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  padding: clamp(18px, 2.5vw, 28px);
+  border: 1px solid rgba(5, 3, 8, 0.14);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.portal-form-block h3 {
+  font-family: "NewEdge666SemiBold", sans-serif;
+  font-size: clamp(1.3rem, 2vw, 1.8rem);
+  text-transform: uppercase;
+}
+
+.portal-work-card {
+  position: relative;
+  background: rgba(255, 228, 255, 0.56);
+}
+
+.portal-work-remove,
+.portal-work-add {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(5, 3, 8, 0.3);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #180d1b;
+  font-size: 1.65rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.portal-work-remove {
+  justify-self: end;
+}
+
+.portal-work-add {
+  justify-self: center;
+}
+
+.portal-work-remove:focus-visible,
+.portal-work-add:focus-visible {
+  outline: 2px solid #4d2d84;
+  outline-offset: 3px;
+}
+
+.portal-work-heading,
+.portal-upload-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.portal-work-heading h4 {
+  font-family: "NewEdge666SemiBold", sans-serif;
+  font-size: 1.1rem;
+}
+
+.portal-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+@media (max-width: 1200px) {
+  .portal-upload-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .portal-upload-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.portal-upload-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(5, 3, 8, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.portal-upload-heading {
+  min-height: 44px;
+}
+
+.portal-upload-format {
+  min-height: 4.5em;
+}
+
+.portal-upload-box .portal-filelist {
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.portal-link-box .portal-input,
+.portal-link-add {
+  min-height: 44px;
+}
+
+.portal-upload-heading .smallBtn {
+  font-size: 0.8rem;
+}
+
+.portal-restriction {
+  padding: 12px 14px;
+  border-left: 3px solid var(--portal-purple);
+  border-radius: 8px;
+  background: rgba(206, 189, 239, 0.3);
+}
+
+.portal-add-submission {
+  justify-self: start;
+  min-height: 44px;
 }
 
 .portal-grid {
@@ -28,8 +155,46 @@
   align-items: start;
 }
 
+.portal-artist-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.portal-artist-identity,
+.portal-artist-notes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.portal-work-core,
+.portal-link-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.portal-work-footer {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.portal-publication-group {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.portal-grid > .portal-field > .portal-label {
+  min-height: 2.6em;
+}
+
 .portal-grid > * {
   min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .portal-artist-grid,
+  .portal-artist-identity,
+  .portal-artist-notes,
+  .portal-work-core,
+  .portal-link-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .portal-grid-socials .portal-label {
@@ -52,8 +217,7 @@
 }
 
 .portal-input,
-.portal-textarea,
-.portal-file {
+.portal-textarea {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -66,8 +230,7 @@
   font-size: 1rem;
 }
 
-.portal-input,
-.portal-file {
+.portal-input {
   min-height: var(--portal-control-height);
 }
 
@@ -76,27 +239,31 @@
   color: rgba(5, 3, 8, 0.45);
 }
 
-.portal-file {
-  padding: 0.55rem 0.7rem;
-}
-
-.portal-file::file-selector-button,
-.portal-file::-webkit-file-upload-button {
-  min-height: 44px;
-  margin-right: 0.65rem;
-  padding: 0.55rem 0.85rem;
+.portal-file-picker {
+  width: 100%;
+  min-height: var(--portal-control-height);
+  padding: 0.7rem 1rem;
   border: 1px solid rgba(90, 39, 183, 0.28);
   border-radius: 12px;
   background: linear-gradient(135deg, var(--portal-purple) 0%, var(--portal-purple-deep) 100%);
   color: #fff;
   font-family: "NewEdge666SemiBold", sans-serif;
+  font-size: 1rem;
   text-transform: lowercase;
   cursor: pointer;
 }
 
+.portal-file-picker:hover {
+  filter: brightness(1.08);
+}
+
+.portal-file-picker:focus-visible {
+  outline: 2px solid var(--electric-blue);
+  outline-offset: 3px;
+}
+
 .portal-input:focus,
-.portal-textarea:focus,
-.portal-file:focus {
+.portal-textarea:focus {
   outline: none;
   border-color: var(--electric-blue);
   box-shadow: 0 0 0 4px var(--focus);
@@ -132,6 +299,37 @@
   list-style: none;
   display: grid;
   gap: 10px;
+}
+
+.portal-pronoun-suggestions-label {
+  margin-top: 0.7rem;
+}
+
+.portal-pronoun-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.portal-pronoun-suggestion {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(5, 3, 8, 0.1);
+  border-radius: 999px;
+  background: rgba(206, 189, 239, 0.42);
+  color: var(--text-main);
+  font: inherit;
+  cursor: pointer;
+}
+
+.portal-pronoun-suggestion:hover,
+.portal-pronoun-suggestion:focus-visible {
+  background: rgba(206, 189, 239, 0.8);
+}
+
+.portal-pronoun-suggestion:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .portal-filelist li {
@@ -171,6 +369,15 @@
   align-items: stretch;
   gap: 10px;
   min-width: 0;
+}
+
+.portal-link-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.portal-add-link {
+  justify-self: start;
 }
 
 .portal-inline-entry .portal-input {
@@ -428,8 +635,18 @@
     border-radius: 20px;
   }
 
-  .portal-grid {
+  .portal-grid,
+  .portal-artist-grid,
+  .portal-artist-identity,
+  .portal-artist-notes,
+  .portal-work-core,
+  .portal-link-grid,
+  .portal-work-footer {
     grid-template-columns: 1fr;
+  }
+
+  .portal-grid > .portal-field > .portal-label {
+    min-height: 0;
   }
 
   .portal-grid-socials .portal-label {
@@ -445,20 +662,6 @@
 
   .portal-grid {
     gap: 16px;
-  }
-
-  .portal-file {
-    min-height: 106px;
-    padding: 0.65rem;
-    white-space: normal;
-  }
-
-  .portal-file::file-selector-button,
-  .portal-file::-webkit-file-upload-button {
-    display: block;
-    max-width: 100%;
-    margin: 0 0 0.5rem;
-    white-space: normal;
   }
 
   .portal-actions {

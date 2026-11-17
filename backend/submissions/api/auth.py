@@ -15,6 +15,8 @@ def _serialize_user(user):
         "username": user.username,
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
+        "can_delete_submissions": user.is_staff and user.has_perm("submissions.delete_submission"),
+        "can_export_all_submissions": user.is_staff and user.has_perm("submissions.export_all_submissions"),
     }
 
 

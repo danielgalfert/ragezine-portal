@@ -3,7 +3,7 @@ from django.contrib.admin.widgets import AdminFileWidget
 from django.db import models
 from django.urls import reverse
 
-from .models import Submission, SubmissionDocument
+from .models import Artist, Submission, SubmissionDocument, Work
 
 
 class _ProtectedFileLink:
@@ -37,8 +37,29 @@ class SubmissionDocumentInline(ProtectedDocumentFileAdminMixin, admin.TabularInl
     readonly_fields = ("original_filename", "content_type", "size", "created_at")
 
 
+class WorkInline(admin.TabularInline):
+    model = Work
+    extra = 0
+    show_change_link = True
+
+
+@admin.register(Artist)
+class ArtistAdmin(admin.ModelAdmin):
+    list_display = ("id", "artist_name", "email", "created_at")
+    search_fields = ("artist_name", "email")
+
+
 @admin.register(Submission)
 class SubmissionAdmin(admin.ModelAdmin):
+    list_display = ("id", "artist", "created_at", "volume")
+    inlines = [WorkInline]
+
+
+@admin.register(Work)
+class WorkAdmin(admin.ModelAdmin):
+    list_display = ("id", "submission", "position", "title", "submission_type", "created_at")
+    list_filter = ("submission_type",)
+    search_fields = ("title", "submission__artist__artist_name", "submission__artist__email")
     inlines = [SubmissionDocumentInline]
 
 

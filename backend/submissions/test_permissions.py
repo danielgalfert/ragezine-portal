@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.http import Http404
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import Resolver404, resolve
 from rest_framework.response import Response
 from rest_framework.test import APIClient, APIRequestFactory
@@ -15,7 +15,7 @@ from submissions.models import SubmissionDocument
 from submissions.serializers import SubmissionDocumentSerializer
 
 
-class SubmissionPermissionTests(SimpleTestCase):
+class SubmissionPermissionTests(TestCase):
     protected_actions = (
         ("get", "/api/submissions/", "list"),
         ("get", "/api/submissions/1/", "retrieve"),
@@ -58,7 +58,7 @@ class SubmissionPermissionTests(SimpleTestCase):
                     handler.assert_not_called()
 
     def test_staff_users_can_review_and_change_submissions(self):
-        staff_user = get_user_model()(username="editor", is_staff=True)
+        staff_user = get_user_model().objects.create_user(username="editor", is_staff=True)
         for method, path, action in self.protected_actions:
             with self.subTest(action=action):
                 response, handler = self.request_action(method, path, action, staff_user)
@@ -66,9 +66,9 @@ class SubmissionPermissionTests(SimpleTestCase):
                 handler.assert_called_once()
 
 
-class StaffLoginPermissionTests(SimpleTestCase):
+class StaffLoginPermissionTests(TestCase):
     def test_staff_credentials_create_a_session(self):
-        staff_user = get_user_model()(username="editor", is_staff=True)
+        staff_user = get_user_model().objects.create_user(username="editor", is_staff=True)
         with patch("submissions.api.auth.authenticate", return_value=staff_user):
             with patch("submissions.api.auth.login") as login:
                 response = APIClient().post(
@@ -96,7 +96,7 @@ class StaffLoginPermissionTests(SimpleTestCase):
         login.assert_not_called()
 
 
-class DownloadPermissionTests(SimpleTestCase):
+class DownloadPermissionTests(TestCase):
     urls = (
         "/api/downloads/complete/",
         "/api/downloads/excel/",
@@ -116,7 +116,7 @@ class DownloadPermissionTests(SimpleTestCase):
     def test_staff_users_can_reach_download_endpoints(self):
         client = APIClient()
         client.force_authenticate(
-            user=get_user_model()(username="editor", is_staff=True)
+            user=get_user_model().objects.create_user(username="editor", is_staff=True)
         )
         with patch(
             "submissions.api.downloads._build_complete_download_zip",

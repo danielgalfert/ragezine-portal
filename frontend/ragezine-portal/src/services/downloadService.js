@@ -52,3 +52,7 @@ export async function downloadExcelReview() {
 export function downloadSubmissionArchive(submissionId) {
   startServerDownload(`downloads/submissions/${submissionId}/`);
 }
+
+export function downloadWorkArchive(workId) {
+  startServerDownload(`downloads/works/${workId}/`);
+}

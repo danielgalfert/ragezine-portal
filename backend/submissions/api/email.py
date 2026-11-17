@@ -75,3 +75,45 @@ def send_submission_receipt(submission):
     )
     message.attach_alternative(_receipt_html(submission), "text/html")
     return message.send(fail_silently=False)
+
+
+def send_batch_receipt(submission, works):
+    if not works:
+        return 0
+    from_email = settings.SUBMISSION_EMAIL_FROM.strip()
+    if not submission.email or not from_email:
+        return 0
+
+    items = "\n".join(f'- "{work.title}" (work #{work.pk})' for work in works)
+    piece_word = "piece" if len(works) == 1 else "pieces"
+    received_line = f"We received your submission #{submission.pk} with {len(works)} {piece_word}:"
+    body = (
+        f"Hi {submission.artist_name},\n\n"
+        f"{_introduction()}\n\n"
+        f"{received_line}\n{items}\n\n"
+        "We will contact you at this email address after review.\n\n"
+        "With thanks,\nThe Rage Zine team\n\n"
+        "Please keep this email as confirmation of your submissions.\n"
+    )
+    html_items = "".join(
+        f"<li>{escape(work.title)} (work #{work.pk})</li>"
+        for work in works
+    )
+    html = (
+        '<!doctype html><html lang="en"><meta charset="utf-8">'
+        '<body style="font-family:Arial,Helvetica,sans-serif;color:#21172f">'
+        f"<p>Hi {escape(submission.artist_name)},</p>"
+        f"<p>{escape(_introduction()).replace(chr(10), '<br>')}</p>"
+        f"<p>{escape(received_line)}</p><ul>{html_items}</ul>"
+        "<p>We will contact you at this email address after review.</p>"
+        "<p>With thanks,<br>The Rage Zine team</p>"
+        "</body></html>"
+    )
+    message = EmailMultiAlternatives(
+        subject=settings.SUBMISSION_EMAIL_SUBJECT.strip(),
+        body=body,
+        from_email=from_email,
+        to=[submission.email],
+    )
+    message.attach_alternative(html, "text/html")
+    return message.send(fail_silently=False)

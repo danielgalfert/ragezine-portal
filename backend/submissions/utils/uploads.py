@@ -7,13 +7,14 @@ from rest_framework import serializers
 
 
 TEXT_EXTENSIONS = {".doc", ".docx", ".pdf"}
-VISUAL_EXTENSIONS = {".tif", ".tiff", ".mp4", ".mov", ".webm"}
+VISUAL_EXTENSIONS = {".tif", ".tiff", ".png", ".mp4", ".mov", ".webm"}
 CONTENT_TYPES = {
     ".doc": "application/msword",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".pdf": "application/pdf",
     ".tif": "image/tiff",
     ".tiff": "image/tiff",
+    ".png": "image/png",
     ".mp4": "video/mp4",
     ".mov": "video/quicktime",
     ".webm": "video/webm",
@@ -44,6 +45,8 @@ def _matches_signature(uploaded_file, extension):
                 return False
         if extension in {".tif", ".tiff"}:
             return header.startswith(TIFF_SIGNATURES)
+        if extension == ".png":
+            return header.startswith(b"\x89PNG\r\n\x1a\n") and b"IHDR" in header[8:32]
         if extension in {".mp4", ".mov"}:
             return len(header) >= 12 and header[4:8] == b"ftyp"
         if extension == ".webm":
