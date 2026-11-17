@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from openpyxl import load_workbook
 from rest_framework.test import APIClient
 
-from submissions.models import Submission, SubmissionVote, Tag
+from submissions.models import Submission, SubmissionComment, SubmissionLink, SubmissionVote, Tag
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
@@ -102,11 +102,11 @@ class PublicInputSecurityTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("text_files", response.data)
 
-    def test_rejects_more_than_five_visuals(self):
+    def test_rejects_more_than_fifty_visuals(self):
         payload = valid_payload()
         payload["visuals"] = [
             SimpleUploadedFile(f"image-{index}.tif", b"II*\x00pixels")
-            for index in range(6)
+            for index in range(51)
         ]
 
         response = self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="192.0.2.103")
@@ -168,6 +168,13 @@ class StaffInputSecurityTests(TestCase):
         SubmissionVote.objects.create(
             submission=submission, voter=voter, choice=SubmissionVote.Choice.YES
         )
+        SubmissionComment.objects.create(
+            submission=submission, author=reviewer, author_name="@reviewer", body="=1+1"
+        )
+        SubmissionLink.objects.create(
+            submission=submission, link_type=SubmissionLink.LinkType.OTHER,
+            name="@external link", url="https://example.com/work",
+        )
         client = APIClient()
         client.force_authenticate(reviewer)
 
@@ -175,17 +182,23 @@ class StaffInputSecurityTests(TestCase):
         workbook = load_workbook(BytesIO(response.content))
         sheet = workbook["Poetry"]
 
-        self.assertEqual(sheet["B2"].data_type, "s")
-        self.assertTrue(sheet["B2"].value.startswith("'="))
-        self.assertEqual(sheet["F2"].data_type, "s")
-        self.assertTrue(sheet["F2"].value.startswith("'+"))
-        self.assertEqual(sheet["O2"].data_type, "s")
-        self.assertEqual(sheet["O2"].value, "'-formula-like-tag")
+        self.assertEqual(sheet["E2"].data_type, "s")
+        self.assertTrue(sheet["E2"].value.startswith("'="))
+        self.assertEqual(sheet["D2"].data_type, "s")
+        self.assertTrue(sheet["D2"].value.startswith("'+"))
+        overview = workbook["Submissions"]
+        tag_column = next(cell.column for cell in overview[1] if cell.value == "Tags")
+        self.assertEqual(overview.cell(row=2, column=tag_column).data_type, "s")
+        self.assertEqual(overview.cell(row=2, column=tag_column).value, "'-formula-like-tag")
         votes_sheet = workbook["Votes"]
         self.assertEqual(votes_sheet["B2"].data_type, "s")
-        self.assertTrue(votes_sheet["B2"].value.startswith("'="))
+        self.assertTrue(votes_sheet["B2"].value.startswith("'+"))
         self.assertEqual(votes_sheet["D2"].data_type, "s")
         self.assertTrue(votes_sheet["D2"].value.startswith("'@"))
+        self.assertEqual(workbook["Comments"]["D2"].data_type, "s")
+        self.assertEqual(workbook["Comments"]["D2"].value, "'=1+1")
+        self.assertEqual(workbook["Links"]["E2"].data_type, "s")
+        self.assertEqual(workbook["Links"]["E2"].value, "'@external link")
 
     def test_archive_export_handles_path_like_artist_name(self):
         submission = Submission.objects.create(
@@ -208,6 +221,6 @@ class StaffInputSecurityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
             self.assertIn(
-                f"poetry/submission-{submission.pk}-{submission.pk}/submission_details.txt",
+                f"submissions/submission-{submission.pk}-{submission.pk}/submission_details.txt",
                 archive.namelist(),
             )

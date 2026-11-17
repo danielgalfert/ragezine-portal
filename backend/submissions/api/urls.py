@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .auth import csrf, login_view, logout_view, session_view
-from .downloads import complete_download, document_download, excel_download, submission_download
+from .downloads import complete_download, document_download, excel_download, submission_download, work_download
 from .previews import document_preview, video_stream_access
 from .submission_views import SubmissionViewSet, TagListView
 
@@ -22,5 +22,6 @@ urlpatterns = [
     path("previews/documents/<int:document_id>/", document_preview, name="preview-document"),
     path("previews/documents/<int:document_id>/video-access/", video_stream_access, name="video-stream-access"),
     path("downloads/submissions/<int:submission_id>/", submission_download, name="downloads-submission"),
+    path("downloads/works/<int:work_id>/", work_download, name="downloads-work"),
     path("", include(router.urls)),
 ]

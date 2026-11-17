@@ -2,6 +2,8 @@
 
 A public submission form and a staff dashboard for reviewing and exporting submissions. The browser app is React; the API and admin are Django.
 
+See [project decisions](docs/decisions.md) for the agreed product rules and open choices.
+
 ## Container layout
 
 `docker-compose.yml` runs three services:
@@ -23,6 +25,10 @@ Uploaded files are **not** served from `/media/`. Django checks staff access bef
 Copy `.env.example` to `.env`, then set a unique `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD`. The example uses production settings; set `DJANGO_DEBUG=1` for local development. Start the stack with `docker compose up --build`; the site is at `http://localhost:8080` unless `RAGEZINE_HTTP_PORT` is changed. `docker compose down` stops it without removing volumes.
 
 The backend can also run locally with SQLite by setting `DJANGO_DB_ENGINE=sqlite`; Compose explicitly selects PostgreSQL. For frontend development, run `npm run dev` in `frontend/ragezine-portal` and the Django development server in `backend`.
+
+On Windows, run `powershell -ExecutionPolicy Bypass -File .\start-local.ps1` from the project root to start both servers for local review. Open `http://127.0.0.1:5173/`. The script installs missing packages, applies SQLite migrations, and uses local file storage. Frontend edits appear at once. Restart the script after backend edits. Press Ctrl+C to stop the servers. Each worktree has its own local database.
+
+To add five sample submissions to the local SQLite database, run `.\.venv\Scripts\python.exe scripts\seed_local_submissions.py --count 5` from `backend`. The script keeps existing records and runs only with local development settings. Apply migrations first if you did not start the app with `start-local.ps1`.
 
 ## Submission upload limits
 

@@ -1,24 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { downloadSubmissionArchive, downloadWorkArchive } from "../services/downloadService";
 import { deleteSubmission, getSubmissions } from "../services/submissionService";
-import { downloadSubmissionArchive } from "../services/downloadService";
-import { searchSubmissionsByTitle } from "../utils/titleSearch";
+import { matchingWorks, searchSubmissionsByKeyword, sortSubmissions } from "../utils/submissionSearch";
 
 const PAGE_SIZE = 20;
-
-function DownloadIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="dashboard-download-icon"
-      viewBox="0 -960 960 960"
-      fill="currentColor"
-    >
-      <path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM200-160q-33 0-56.5-23.5T120-240v-120h80v120h560v-120h80v120q0 33-23.5 56.5T760-160H200Z" />
-    </svg>
-  );
-}
 
 function formatDate(value) {
   if (!value) {
@@ -37,23 +24,91 @@ function formatDate(value) {
   }).format(date);
 }
 
-function getResidenceLabel(submission) {
-  const residences = submission.countries_residence_names || [];
-  if (!residences.length) {
-    return submission.country_origin || "Unknown";
-  }
-
-  return residences.join(", ");
+function getOriginLabel(submission) {
+  const origins = submission.artist?.country_origin_names || submission.country_origin_names || [];
+  return origins.length ? origins.join(", ") : submission.country_origin_name || "Unknown";
 }
 
-export default function DashboardSubmissionsList() {
+function getResidenceLabel(submission) {
+  const residences = submission.artist?.countries_residence_names || submission.countries_residence_names || [];
+  return residences.length ? residences.join(", ") : "Unknown";
+}
+
+function SubmissionGroup({ submission, works, onDelete, deletingId, canDeleteSubmissions }) {
+  const artistName = submission.artist?.artist_name || submission.artist_name;
+  const counts = submission.vote_counts || {};
+
+  return (
+    <article className="dashboard-artist-group">
+      <header className="dashboard-artist-header">
+        <div className="dashboard-artist-info">
+          <div className="dashboard-artist-heading">
+            <h3>{artistName}</h3>
+            <span>#{submission.id}</span>
+          </div>
+          <p className="dashboard-artist-meta">
+            <span>{submission.artist?.email || submission.email || "No email"}</span>
+            <span><strong>Origin:</strong> {getOriginLabel(submission)}</span>
+            <span><strong>Residence:</strong> {getResidenceLabel(submission)}</span>
+          </p>
+          {submission.tags?.length > 0 && (
+            <div className="dashboard-tag-list" aria-label="Tags">
+              {submission.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}
+            </div>
+          )}
+        </div>
+        <div className="dashboard-artist-summary">
+          <span>submitted {formatDate(submission.created_at)}</span>
+          <div className="dashboard-row-votes" aria-label={`Votes: ${counts.yes || 0} yes, ${counts.no || 0} no, ${counts.see_comment || 0} see comment`}>
+            <span>Yes {counts.yes || 0}</span>
+            <span>No {counts.no || 0}</span>
+            <span>See comment {counts.see_comment || 0}</span>
+          </div>
+        </div>
+        <div className="dashboard-row-action">
+          <Link className="smallBtn dashboard-details-button" to={`/dashboard/submissions/${submission.id}`} aria-label={`View details for submission ${submission.id}`}>details</Link>
+          {canDeleteSubmissions && <button
+            type="button"
+            className="smallBtn dashboard-delete-button"
+            onClick={() => onDelete(submission)}
+            disabled={deletingId === submission.id}
+            aria-label={`Delete submission ${submission.id}`}
+          >
+            {deletingId === submission.id ? "deleting..." : "delete"}
+          </button>}
+        </div>
+      </header>
+      <div className="dashboard-block-list" aria-label={`Pieces by ${artistName}`}>
+        {works.map((work, index) => (
+          <div className="dashboard-block-row" key={work.id || `legacy-${submission.id}-${index}`}>
+            <strong className="dashboard-block-title">{work.title}</strong>
+            {work.description && <p className="dashboard-block-description">{work.description}</p>}
+            <span className="dashboard-block-type">{(work.submission_type || "uncategorized").replaceAll("_", " ")}</span>
+            <button
+              type="button"
+              className="smallBtn dashboard-block-download"
+              onClick={() => work.id ? downloadWorkArchive(work.id) : downloadSubmissionArchive(submission.id)}
+              aria-label={`Download ${work.title} by ${artistName}`}
+            >
+              ↓
+            </button>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+export default function DashboardSubmissionsList({ canDeleteSubmissions = false }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
-  const [titleQuery, setTitleQuery] = useState("");
+  const [keywordQuery, setKeywordQuery] = useState("");
+  const [sortCategory, setSortCategory] = useState("date");
+  const [sortDirection, setSortDirection] = useState("desc");
   const [selectedTagId, setSelectedTagId] = useState("");
   const [selectedType, setSelectedType] = useState("");
 
@@ -98,31 +153,34 @@ export default function DashboardSubmissionsList() {
     const tagged = selectedTagId
       ? submissions.filter((submission) => submission.tags?.some((tag) => String(tag.id) === selectedTagId))
       : submissions;
-    return searchSubmissionsByTitle(tagged, titleQuery);
-  }, [submissions, titleQuery, selectedTagId]);
+    return searchSubmissionsByKeyword(tagged, keywordQuery);
+  }, [submissions, keywordQuery, selectedTagId]);
 
   const filteredSubmissions = useMemo(
-    () => selectedType
-      ? searchMatches.filter((submission) => (submission.submission_type || "other") === selectedType)
-      : searchMatches,
-    [searchMatches, selectedType],
+    () => sortSubmissions(selectedType
+      ? searchMatches.filter((submission) => matchingWorks(submission, keywordQuery, selectedType).length > 0)
+      : searchMatches, `${sortCategory}_${sortDirection}`),
+    [searchMatches, selectedType, sortCategory, sortDirection, keywordQuery],
   );
 
   const summary = useMemo(() => {
     const byType = searchMatches.reduce((acc, submission) => {
-      const key = submission.submission_type || "other";
-      acc[key] = (acc[key] || 0) + 1;
+      matchingWorks(submission, keywordQuery).forEach((work) => {
+        const key = work.submission_type || "uncategorized";
+        acc[key] = (acc[key] || 0) + 1;
+      });
       return acc;
     }, {});
 
-    return [...new Set(submissions.map((submission) => submission.submission_type || "other"))]
-      .sort((a, b) => a.localeCompare(b))
+    const typeOrder = ["poetry", "visual_art", "short_form_writing", "long_form_writing", "other", "uncategorized"];
+    return [...new Set(submissions.flatMap((submission) => (submission.works?.length ? submission.works : [submission]).map((work) => work.submission_type || "uncategorized")))]
+      .sort((a, b) => typeOrder.indexOf(a) - typeOrder.indexOf(b))
       .map((type) => ({
         type,
         label: type.replaceAll("_", " "),
         count: byType[type] || 0,
       }));
-  }, [submissions, searchMatches]);
+  }, [submissions, searchMatches, keywordQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / PAGE_SIZE));
   const visibleSubmissions = useMemo(() => {
@@ -136,17 +194,13 @@ export default function DashboardSubmissionsList() {
     }
   }, [page, totalPages]);
 
-  function handleSubmissionDownload(submissionId) {
-    downloadSubmissionArchive(submissionId);
-  }
-
-  function handleTitleQueryChange(event) {
-    setTitleQuery(event.target.value);
+  function handleKeywordQueryChange(event) {
+    setKeywordQuery(event.target.value);
     setPage(1);
   }
 
   async function handleSubmissionDelete(submission) {
-    if (!window.confirm(`Delete submission #${submission.id} by ${submission.artist_name}? This also removes its uploaded files.`)) {
+    if (!window.confirm(`Delete submission #${submission.id} by ${submission.artist?.artist_name || submission.artist_name}? This also removes its uploaded files.`)) {
       return;
     }
 
@@ -167,22 +221,22 @@ export default function DashboardSubmissionsList() {
       <div className="dashboard-shell">
         <div className="dashboard-filters">
           <div className="dashboard-search">
-            <label htmlFor="dashboard-title-search">search by title</label>
+            <label htmlFor="dashboard-keyword-search">search artist, title, or description</label>
             <div className="dashboard-search-controls">
               <input
-                id="dashboard-title-search"
+                id="dashboard-keyword-search"
                 type="search"
-                value={titleQuery}
-                onChange={handleTitleQueryChange}
-                placeholder="Find a submission title"
+                value={keywordQuery}
+                onChange={handleKeywordQueryChange}
+                placeholder="Search artist names, titles, or descriptions"
                 autoComplete="off"
               />
-              {titleQuery && (
+              {keywordQuery && (
                 <button
                   type="button"
                   className="smallBtn"
                   onClick={() => {
-                    setTitleQuery("");
+                    setKeywordQuery("");
                     setPage(1);
                   }}
                 >
@@ -205,11 +259,27 @@ export default function DashboardSubmissionsList() {
               {availableTags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
             </select>
           </div>
+          <div className="dashboard-order-controls">
+            <div className="dashboard-sort-filter">
+              <label htmlFor="dashboard-sort-category">order by</label>
+              <select id="dashboard-sort-category" value={sortCategory} onChange={(event) => { setSortCategory(event.target.value); setPage(1); }}>
+                <option value="date">submission date</option>
+                <option value="artist">artist name</option>
+              </select>
+            </div>
+            <div className="dashboard-direction-filter">
+              <label htmlFor="dashboard-sort-direction">direction</label>
+              <select id="dashboard-sort-direction" value={sortDirection} onChange={(event) => { setSortDirection(event.target.value); setPage(1); }}>
+                <option value="desc">{sortCategory === "date" ? "newest first" : "Z to A"}</option>
+                <option value="asc">{sortCategory === "date" ? "oldest first" : "A to Z"}</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div className="dashboard-header">
           <div className="dashboard-summary">
             <div className="dashboard-summary-card">
-              <span className="dashboard-summary-label">{titleQuery.trim() || selectedTagId ? "results" : "total"}</span>
+              <span className="dashboard-summary-label">{keywordQuery.trim() || selectedTagId ? "results" : "total"}</span>
               <strong>{searchMatches.length}</strong>
             </div>
             {summary.map((item) => (
@@ -265,7 +335,7 @@ export default function DashboardSubmissionsList() {
             <div className="dashboard-toolbar">
               <p className="dashboard-range" role="status">
                 Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of {filteredSubmissions.length}
-                {(titleQuery.trim() || selectedTagId || selectedType) && ` results (${submissions.length} total)`}
+                {(keywordQuery.trim() || selectedTagId || selectedType) && ` results (${submissions.length} total)`}
               </p>
               <div className="dashboard-pagination">
                 <button
@@ -291,80 +361,15 @@ export default function DashboardSubmissionsList() {
             </div>
 
             <div className="dashboard-list">
-              <div className="dashboard-list-head">
-                <span>ID</span>
-                <span>submission date</span>
-                <span>artist</span>
-                <span>title and short description</span>
-                <span>type</span>
-                <span>email</span>
-                <span>residence</span>
-                <span>votes</span>
-                <span></span>
-              </div>
-
               {visibleSubmissions.map((submission) => (
-                <article key={submission.id} className="dashboard-row">
-                  <div className="dashboard-row-id">{submission.id}</div>
-                  <div className="dashboard-row-date">{formatDate(submission.created_at)}</div>
-                  <div className="dashboard-row-artist">{submission.artist_name}</div>
-                  <div className="dashboard-row-title">
-                    <strong>{submission.title}</strong>
-                    <p>{submission.description || submission.short_bio || "No description provided."}</p>
-                    {submission.tags?.length > 0 && (
-                      <div className="dashboard-tag-list" aria-label="Tags">
-                        {submission.tags.map((tag) => <span key={tag.id}>{tag.name}</span>)}
-                      </div>
-                    )}
-                    {submission.documents?.length > 0 && (
-                      <div className="dashboard-document-list">
-                        {submission.documents.map((document) => (
-                          <a key={document.id} href={document.download_url} title={`Download ${document.original_filename}`}>
-                            {document.original_filename || `Document ${document.id}`}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="dashboard-row-type">
-                    {(submission.submission_type || "other").replaceAll("_", " ")}
-                  </div>
-                  <div className="dashboard-row-email">{submission.email || "Missing"}</div>
-                  <div className="dashboard-row-location">{getResidenceLabel(submission)}</div>
-                  <div className="dashboard-row-votes" aria-label={`Votes: ${submission.vote_counts?.yes || 0} yes, ${submission.vote_counts?.no || 0} no, ${submission.vote_counts?.see_comment || 0} see comment`}>
-                    <span>Yes {submission.vote_counts?.yes || 0}</span>
-                    <span>No {submission.vote_counts?.no || 0}</span>
-                    <span>See comment {submission.vote_counts?.see_comment || 0}</span>
-                  </div>
-                  <div className="dashboard-row-action">
-                    <Link
-                      className="smallBtn dashboard-details-button"
-                      to={`/dashboard/submissions/${submission.id}`}
-                      aria-label={`View details for submission ${submission.id}`}
-                    >
-                      details
-                    </Link>
-                    <button
-                      type="button"
-                      className="smallBtn dashboard-download-button"
-                      onClick={() => handleSubmissionDownload(submission.id)}
-                      aria-label={`Download submission ${submission.id}`}
-                      title={`Download submission ${submission.id}`}
-                    >
-                      <DownloadIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className="smallBtn dashboard-delete-button"
-                      onClick={() => handleSubmissionDelete(submission)}
-                      disabled={deletingId === submission.id}
-                      aria-label={`Delete submission ${submission.id}`}
-                      title={`Delete submission ${submission.id}`}
-                    >
-                      {deletingId === submission.id ? "deleting..." : "delete"}
-                    </button>
-                  </div>
-                </article>
+                <SubmissionGroup
+                  key={submission.id}
+                  submission={submission}
+                  works={matchingWorks(submission, keywordQuery, selectedType)}
+                  onDelete={handleSubmissionDelete}
+                  deletingId={deletingId}
+                  canDeleteSubmissions={canDeleteSubmissions}
+                />
               ))}
             </div>
           </>

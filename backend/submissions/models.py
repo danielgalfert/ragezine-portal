@@ -26,6 +26,23 @@ class Tag(models.Model):
         return self.name
 
 
+class Artist(models.Model):
+    artist_name = models.CharField(max_length=255)
+    pronouns = models.CharField(max_length=500)
+    email = models.EmailField(db_index=True)
+    short_bio = models.TextField()
+    socials = models.CharField(max_length=500, blank=True)
+    country_origin = models.TextField()
+    countries_residence = settings.DATABASE_HANDLER.residence_field()
+    message_to_editors = models.TextField(blank=True)
+    submitted_before = models.BooleanField(null=True, blank=True)
+    featured_before = models.BooleanField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.artist_name
+
+
 class Submission(models.Model):
     class SubmissionType(models.TextChoices):
         POETRY = "poetry", "Poetry"
@@ -43,10 +60,16 @@ class Submission(models.Model):
     )
 
     volume = models.IntegerField(default=VOLUME_NUMBER)
+    artist = models.ForeignKey(
+        Artist, on_delete=models.PROTECT, related_name="submissions", null=True, blank=True
+    )
 
     artist_name = models.CharField(max_length=255)
-    pronouns = models.CharField(max_length=128)
+    pronouns = models.CharField(max_length=500)
     short_bio = models.TextField()
+    message_to_editors = models.TextField(blank=True)
+    submitted_before = models.BooleanField(null=True, blank=True)
+    featured_before = models.BooleanField(null=True, blank=True)
 
     socials = models.CharField(max_length=500, blank=True)
     email = models.EmailField()
@@ -55,6 +78,11 @@ class Submission(models.Model):
     countries_residence = settings.DATABASE_HANDLER.residence_field()
 
     language = models.CharField(max_length=64, default="English")
+    published_elsewhere = models.BooleanField(null=True, blank=True)
+    published_where = models.TextField(blank=True)
+    anything_else = models.TextField(blank=True)
+    batch_id = models.UUIDField(null=True, blank=True, db_index=True)
+    batch_position = models.PositiveSmallIntegerField(null=True, blank=True)
     allow_translation = models.BooleanField(default=False)
     tags = models.ManyToManyField(Tag, blank=True, related_name="submissions")
 
@@ -63,9 +91,36 @@ class Submission(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        permissions = [
+            ("export_all_submissions", "Can export all submissions"),
+        ]
 
     def __str__(self):
         return f"{self.artist_name} — {self.title}"
+
+
+class Work(models.Model):
+    submission = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="works")
+    position = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=255)
+    year = models.CharField(max_length=32, blank=True)
+    description = models.TextField(blank=True)
+    submission_type = models.CharField(max_length=32, choices=Submission.SubmissionType.choices)
+    language = models.CharField(max_length=64, default="English")
+    published_elsewhere = models.BooleanField(null=True, blank=True)
+    published_where = models.TextField(blank=True)
+    anything_else = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["submission", "position"], name="one_position_per_submission")
+        ]
+
+    def __str__(self):
+        return self.title
 
 
 class SubmissionDocumentQuerySet(models.QuerySet):
@@ -86,6 +141,9 @@ class SubmissionDocument(models.Model):
         on_delete=models.CASCADE,
         related_name="documents",
     )
+    work = models.ForeignKey(
+        Work, on_delete=models.CASCADE, related_name="documents", null=True, blank=True
+    )
     document_type = models.CharField(max_length=16, choices=DocumentType.choices)
     file = models.FileField(upload_to=submission_document_upload_path)
     original_filename = models.CharField(max_length=255, blank=True)
@@ -105,9 +163,10 @@ class SubmissionDocument(models.Model):
         ]
 
     @classmethod
-    def create_from_upload(cls, submission, uploaded_file, document_type):
+    def create_from_upload(cls, submission, uploaded_file, document_type, work=None):
         return cls.objects.create(
             submission=submission,
+            work=work,
             document_type=document_type,
             file=uploaded_file,
             original_filename=uploaded_file.name or "",
@@ -120,6 +179,33 @@ class SubmissionDocument(models.Model):
             f"{self.get_document_type_display()} "
             f"for {self.submission_id}: {self.file.name}"
         )
+
+
+class SubmissionLink(models.Model):
+    class LinkType(models.TextChoices):
+        TEXT = "text", "Text"
+        VISUAL = "visual", "Visual"
+        VIDEO = "video", "Video"
+        OTHER = "other", "Third-party"
+
+    submission = models.ForeignKey(
+        Submission,
+        on_delete=models.CASCADE,
+        related_name="links",
+    )
+    work = models.ForeignKey(
+        Work, on_delete=models.CASCADE, related_name="links", null=True, blank=True
+    )
+    link_type = models.CharField(max_length=16, choices=LinkType.choices)
+    name = models.CharField(max_length=120, blank=True)
+    url = models.URLField(max_length=2048)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.get_link_type_display()} link for {self.submission_id}: {self.url}"
 
 
 class SubmissionComment(models.Model):

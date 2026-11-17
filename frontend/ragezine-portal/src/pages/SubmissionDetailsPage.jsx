@@ -46,6 +46,10 @@ function Detail({ label, value }) {
   );
 }
 
+function yesNo(value) {
+  return value == null ? "—" : value ? "Yes" : "No";
+}
+
 function VideoPreview({ document }) {
   const [streamUrl, setStreamUrl] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -129,6 +133,62 @@ function Preview({ document }) {
   return <pre className="details-text">{text}</pre>;
 }
 
+function WorkBlock({ work, number }) {
+  const files = work.documents || [];
+  const links = work.links || [];
+  const [selectedFileId, setSelectedFileId] = useState(files[0]?.id ?? null);
+  const selectedFile = files.find((file) => file.id === selectedFileId) || null;
+
+  return (
+    <section className="details-card details-work-block" aria-labelledby={`work-${work.id}-heading`}>
+      <div className="details-work-heading">
+        <h2 id={`work-${work.id}-heading`}>Piece {number}</h2>
+      </div>
+      <dl className="details-grid">
+        <Detail label="Title" value={work.title} />
+        <Detail label="Type" value={work.submission_type?.replaceAll("_", " ")} />
+        <Detail label="Year" value={work.year} />
+        <Detail label="Language" value={work.language} />
+        <Detail label="Description" value={work.description} />
+        <Detail label="Published elsewhere" value={yesNo(work.published_elsewhere)} />
+        {work.published_elsewhere && <Detail label="Published where" value={work.published_where} />}
+        <Detail label="Anything else we need to know" value={work.anything_else} />
+      </dl>
+      <h3>Files ({files.length})</h3>
+      {files.length === 0 ? <p>No files are attached.</p> : (
+        <div className="details-files-layout">
+          <div className="details-file-list" aria-label={`Files for piece ${number}`}>
+            {files.map((file) => (
+              <button key={file.id} type="button" className={`details-file-button${file.id === selectedFileId ? " is-selected" : ""}`} onClick={() => setSelectedFileId(file.id)} aria-pressed={file.id === selectedFileId}>
+                <strong>{file.original_filename || `File ${file.id}`}</strong>
+                <span>{file.preview_kind === "video" ? "Video" : file.document_type === "visual" ? "Visual" : "Text"} · {formatFileSize(file.size)}</span>
+              </button>
+            ))}
+          </div>
+          <div className="details-preview-panel">
+            <div className="details-preview-bar">
+              <strong>{selectedFile?.original_filename || "Preview"}</strong>
+              {selectedFile && <a href={selectedFile.download_url}>Download original ↓</a>}
+            </div>
+            <div className="details-preview"><Preview key={selectedFile?.id} document={selectedFile} /></div>
+          </div>
+        </div>
+      )}
+      <h3>Links ({links.length})</h3>
+      {links.length === 0 ? <p>No links are attached.</p> : (
+        <ul className="details-link-list">
+          {links.map((link) => (
+            <li key={link.id}>
+              <span>{link.name || (link.link_type === "text" ? "Text" : link.link_type === "video" ? "Video" : link.link_type === "other" ? "Third-party" : "Visual")}</span>
+              <a href={link.url} target="_blank" rel="noopener noreferrer">{link.url}</a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function SubmissionDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -138,7 +198,6 @@ export default function SubmissionDetailsPage() {
   const [voteState, setVoteState] = useState(null);
   const [voteError, setVoteError] = useState("");
   const [savingVote, setSavingVote] = useState(false);
-  const [selectedFileId, setSelectedFileId] = useState(null);
   const [error, setError] = useState("");
   const [commentError, setCommentError] = useState("");
   const [draft, setDraft] = useState("");
@@ -169,7 +228,6 @@ export default function SubmissionDetailsPage() {
         setComments(Array.isArray(notes) ? notes : notes.results || []);
         setVoteState(voteData);
         setAvailableTags(Array.isArray(tags) ? tags : tags.results || []);
-        setSelectedFileId(details.documents?.[0]?.id ?? null);
       } catch (err) {
         if (active) setError(err?.response?.status === 404 ? "Submission not found." : "Could not load this submission.");
       } finally {
@@ -257,9 +315,6 @@ export default function SubmissionDetailsPage() {
     }
   }
 
-  const files = submission?.documents || [];
-  const selectedFile = files.find((file) => file.id === selectedFileId) || null;
-
   return (
     <main>
       <div className="portal-page dashboard-page details-page">
@@ -276,29 +331,35 @@ export default function SubmissionDetailsPage() {
             <>
               <header className="details-heading">
                 <p>submission #{submission.id}</p>
-                <h1>{submission.title}</h1>
-                <p>by {submission.artist_name}</p>
+                <h1>{submission.artist?.artist_name || submission.artist_name}</h1>
               </header>
 
               <section className="details-card" aria-labelledby="details-heading">
-                <h2 id="details-heading">Submission details</h2>
+                <h2 id="details-heading">Artist information</h2>
                 <dl className="details-grid">
-                  <Detail label="Artist" value={submission.artist_name} />
-                  <Detail label="Pronouns" value={submission.pronouns} />
-                  <Detail label="Email" value={<a href={`mailto:${submission.email}`}>{submission.email}</a>} />
-                  <Detail label="Type" value={submission.submission_type?.replaceAll("_", " ")} />
+                  <Detail label="Artist" value={submission.artist?.artist_name || submission.artist_name} />
+                  <Detail label="Pronouns" value={submission.artist?.pronouns || submission.pronouns} />
+                  <Detail label="Email" value={<a href={`mailto:${submission.artist?.email || submission.email}`}>{submission.artist?.email || submission.email}</a>} />
                   <Detail label="Volume" value={submission.volume} />
-                  <Detail label="Year" value={submission.year} />
-                  <Detail label="Language" value={submission.language} />
-                  <Detail label="Country of origin" value={submission.country_origin_name || submission.country_origin} />
-                  <Detail label="Residence" value={submission.countries_residence_names?.join(", ")} />
+                  <Detail label="Countries of origin" value={submission.artist?.country_origin_names?.join(", ") || submission.country_origin_names?.join(", ") || submission.country_origin_name} />
+                  <Detail label="Residence" value={submission.artist?.countries_residence_names?.join(", ") || submission.countries_residence_names?.join(", ")} />
                   <Detail label="Submitted" value={formatDate(submission.created_at)} />
-                  <Detail label="Updated" value={formatDate(submission.updated_at)} />
-                  <Detail label="Socials" value={submission.socials} />
-                  <Detail label="Description" value={submission.description} />
-                  <Detail label="Short bio" value={submission.short_bio} />
+                  <Detail label="Socials" value={submission.artist?.socials || submission.socials} />
+                  <Detail label="Submitted to RAGE Zine before" value={yesNo(submission.artist?.submitted_before ?? submission.submitted_before)} />
+                  <Detail label="Featured in RAGE Zine before" value={yesNo(submission.artist?.featured_before ?? submission.featured_before)} />
+                  <Detail label="Message to the editors" value={submission.artist?.message_to_editors || submission.message_to_editors} />
+                  <Detail label="Short bio" value={submission.artist?.short_bio || submission.short_bio} />
                 </dl>
               </section>
+
+              {(submission.works?.length ? submission.works : [{
+                id: `legacy-${submission.id}`, title: submission.title,
+                submission_type: submission.submission_type, year: submission.year,
+                description: submission.description, language: submission.language,
+                published_elsewhere: submission.published_elsewhere,
+                published_where: submission.published_where, anything_else: submission.anything_else,
+                documents: submission.documents, links: submission.links, created_at: submission.created_at,
+              }]).map((work, index) => <WorkBlock key={work.id} work={work} number={index + 1} />)}
 
               <section className="details-card details-tags" aria-labelledby="tags-heading">
                 <h2 id="tags-heading">Tags</h2>
@@ -338,35 +399,6 @@ export default function SubmissionDetailsPage() {
                   </div>
                   {tagError && <p role="alert" className="details-error">{tagError}</p>}
                 </form>
-              </section>
-
-              <section className="details-card" aria-labelledby="files-heading">
-                <h2 id="files-heading">Files ({files.length})</h2>
-                {files.length === 0 ? <p>No files are attached.</p> : (
-                  <div className="details-files-layout">
-                    <div className="details-file-list" aria-label="Attached files">
-                      {files.map((file) => (
-                        <button
-                          key={file.id}
-                          type="button"
-                          className={`details-file-button${file.id === selectedFileId ? " is-selected" : ""}`}
-                          onClick={() => setSelectedFileId(file.id)}
-                          aria-pressed={file.id === selectedFileId}
-                        >
-                          <strong>{file.original_filename || `File ${file.id}`}</strong>
-                          <span>{file.document_type} · {formatFileSize(file.size)}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="details-preview-panel">
-                      <div className="details-preview-bar">
-                        <strong>{selectedFile?.original_filename || "Preview"}</strong>
-                        {selectedFile && <a href={selectedFile.download_url}>Download original ↓</a>}
-                      </div>
-                      <div className="details-preview"><Preview key={selectedFile?.id} document={selectedFile} /></div>
-                    </div>
-                  </div>
-                )}
               </section>
 
               <section className="details-card details-voting" aria-labelledby="votes-heading">
