@@ -23,24 +23,27 @@ class SubmissionDocumentRepository:
     def list_for_submission(self, submission):
         return submission.documents.all()
 
-    def create(self, submission, uploaded_file, document_type):
+    def create(self, submission, uploaded_file, document_type, work=None):
         uploaded_file = sanitize_uploaded_filename(uploaded_file)
         return SubmissionDocument.create_from_upload(
             submission=submission,
+            work=work,
             uploaded_file=uploaded_file,
             document_type=document_type,
         )
 
-    def create_text_document(self, submission, uploaded_file):
+    def create_text_document(self, submission, uploaded_file, work=None):
         return self.create(
             submission=submission,
+            work=work,
             uploaded_file=uploaded_file,
             document_type=SubmissionDocument.DocumentType.TEXT,
         )
 
-    def create_visual_document(self, submission, uploaded_file):
+    def create_visual_document(self, submission, uploaded_file, work=None):
         return self.create(
             submission=submission,
+            work=work,
             uploaded_file=uploaded_file,
             document_type=SubmissionDocument.DocumentType.VISUAL,
         )

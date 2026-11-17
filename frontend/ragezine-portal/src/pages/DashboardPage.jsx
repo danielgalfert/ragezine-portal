@@ -24,6 +24,10 @@ function triggerBrowserDownload(blob, filename) {
 export default function DashboardPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [hasStaffAccess, setHasStaffAccess] = useState(false);
+  const [staffPermissions, setStaffPermissions] = useState({
+    can_delete_submissions: false,
+    can_export_all_submissions: false,
+  });
   const [downloadingExcel, setDownloadingExcel] = useState(false);
   const navigate = useNavigate();
 
@@ -36,6 +40,7 @@ export default function DashboardPage() {
           return;
         }
         setHasStaffAccess(true);
+        setStaffPermissions(session.user);
       } catch {
         navigate("/login", { replace: true });
         return;
@@ -103,7 +108,7 @@ export default function DashboardPage() {
             </li>
           </ul>
 
-          <div className="buttons">
+          {staffPermissions.can_export_all_submissions && <div className="buttons">
             <button
               type="button"
               className="menu-button"
@@ -116,13 +121,14 @@ export default function DashboardPage() {
               type="button"
               className="menu-button"
               onClick={onDownloadComplete}
+              aria-label="Download all submission files and Excel index"
             >
-              complete ↓
+              files ↓
             </button>
-          </div>
+          </div>}
         </nav>
 
-        <DashboardSubmissionsList />
+        <DashboardSubmissionsList canDeleteSubmissions={staffPermissions.can_delete_submissions} />
       </div>
     </main>
   );

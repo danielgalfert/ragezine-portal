@@ -12,7 +12,7 @@ This review covers the submission portal code and its Lightsail deployment. It i
 | Staff login | Login requires CSRF. The API also limits login attempts by IP and username. Staff sessions expire after eight hours or when the browser closes. |
 | Staff exports | XLSX values that could run as formulas are written as text. Downloads require staff access and uploaded files are sent as attachments. |
 | Browser | React escapes applicant text. The portal adds a Content Security Policy, frame protection, MIME sniffing protection, referrer policy, and HSTS on the two HTTPS hosts. |
-| Dependencies | Pinned backend packages and the frontend lockfile were updated after vulnerability scans. CI now runs `pip-audit` and `npm audit` before deployment. |
+| Dependencies | Pinned backend packages and the frontend lockfile were updated after vulnerability scans. CI runs `pip-audit` and audits production npm dependencies before deployment. |
 
 Input validation accepts the text needed for artist submissions. It does not remove all HTML-like characters. React and Django escape text where they render it, and the receipt email escapes its HTML fields. This keeps submitted prose intact.
 
@@ -29,4 +29,6 @@ The staff portal uses passwords and rate limits; it does not yet offer MFA. Add 
 
 ## Automated checks
 
-CI runs Django tests, `check --deploy`, frontend lint and build, and dependency audits. Django reports warnings for HSTS on subdomains, HSTS preload, and its own HTTPS redirect. Caddy terminates TLS and redirects HTTP. HSTS applies to each portal host, without claiming every subdomain of `danielgalfert.com` is HTTPS-only.
+CI runs Django tests, `check --deploy`, frontend lint and build, and dependency audits. The npm gate uses `npm audit --omit=dev --audit-level=high`. A full audit reports GHSA-fc5q-39xc-vjpf in `picomatch`, which Vite uses at build time. No patched `picomatch` version is available as of 2026-11-17. The Vite configuration uses repository-controlled glob patterns, and Vite is not shipped with the site. Recheck the full audit when upstream releases a fix.
+
+Django reports warnings for HSTS on subdomains, HSTS preload, and its own HTTPS redirect. Caddy terminates TLS and redirects HTTP. HSTS applies to each portal host, without claiming every subdomain of `danielgalfert.com` is HTTPS-only.

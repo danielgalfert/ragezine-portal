@@ -36,6 +36,28 @@
   font-size: clamp(1.3rem, 2.5vw, 2rem);
 }
 
+.details-work-block {
+  display: grid;
+  gap: 20px;
+}
+
+.details-work-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.details-work-heading h2 {
+  margin: 0;
+}
+
+.details-work-block h3 {
+  margin: 8px 0 0;
+  font-family: "NewEdge666SemiBold", sans-serif;
+}
+
 .details-card p,
 .details-card dd {
   color: #180d1b;
@@ -54,9 +76,9 @@
 
 .details-field dt {
   margin-bottom: 5px;
-  font-family: "NewEdge666Slanted", sans-serif;
-  font-size: .82rem;
-  color: #65466b;
+  font-family: "NewEdge666SemiBold", sans-serif;
+  font-size: .96rem;
+  color: #180d1b;
   text-transform: lowercase;
 }
 
@@ -65,6 +87,7 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   line-height: 1.4;
+  font-family: "NewEdge666Light", sans-serif;
 }
 
 .details-tag-list {
