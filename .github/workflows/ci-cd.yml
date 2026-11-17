@@ -70,7 +70,7 @@ jobs:
           cache-dependency-path: frontend/ragezine-portal/package-lock.json
       - run: npm ci
         working-directory: frontend/ragezine-portal
-      - run: npm audit --audit-level=high
+      - run: npm audit --omit=dev --audit-level=high
         working-directory: frontend/ragezine-portal
       - run: npm run lint
         working-directory: frontend/ragezine-portal

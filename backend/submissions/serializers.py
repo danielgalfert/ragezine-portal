@@ -1,3 +1,4 @@
+import json
 import pycountry
 from ipaddress import ip_address
 from urllib.parse import urlsplit
@@ -9,7 +10,7 @@ from django.db.models import Count
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import Submission, SubmissionComment, SubmissionDocument, SubmissionLink, SubmissionVote, Tag
+from .models import Artist, Submission, SubmissionComment, SubmissionDocument, SubmissionLink, SubmissionVote, Tag, Work
 from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
@@ -122,7 +123,40 @@ class SubmissionDocumentSerializer(serializers.ModelSerializer):
 class SubmissionLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = SubmissionLink
-        fields = ["id", "link_type", "url", "created_at"]
+        fields = ["id", "link_type", "name", "url", "created_at"]
+
+
+class ArtistSerializer(serializers.ModelSerializer):
+    country_origin_names = serializers.SerializerMethodField()
+    countries_residence_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Artist
+        fields = [
+            "id", "artist_name", "pronouns", "email", "short_bio", "socials",
+            "country_origin", "country_origin_names", "countries_residence",
+            "countries_residence_names", "message_to_editors", "submitted_before",
+            "featured_before", "created_at",
+        ]
+
+    def get_country_origin_names(self, obj):
+        return [country_name(code) for code in origin_codes(obj.country_origin)]
+
+    def get_countries_residence_names(self, obj):
+        return [country_name(code) for code in obj.countries_residence]
+
+
+class WorkSerializer(serializers.ModelSerializer):
+    documents = SubmissionDocumentSerializer(many=True, read_only=True)
+    links = SubmissionLinkSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Work
+        fields = [
+            "id", "position", "title", "submission_type", "year", "description",
+            "language", "published_elsewhere", "published_where", "anything_else",
+            "documents", "links", "created_at", "updated_at",
+        ]
 
 
 class SubmissionCommentSerializer(serializers.ModelSerializer):
@@ -180,9 +214,14 @@ class TagNameSerializer(serializers.Serializer):
 
 class SubmissionSerializer(serializers.ModelSerializer):
     volume = serializers.IntegerField(read_only=True)
+    batch_id = serializers.UUIDField(read_only=True)
+    batch_position = serializers.IntegerField(read_only=True)
     email = serializers.EmailField(required=True, allow_blank=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     short_bio = serializers.CharField(max_length=4000)
+    message_to_editors = serializers.CharField(required=False, allow_blank=True, max_length=4000)
+    published_where = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    anything_else = serializers.CharField(required=False, allow_blank=True, max_length=4000)
     country_origin = CountryOriginField(
         child=serializers.CharField(max_length=2),
         allow_empty=False,
@@ -202,6 +241,9 @@ class SubmissionSerializer(serializers.ModelSerializer):
     links = SubmissionLinkSerializer(many=True, read_only=True)
     vote_counts = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
+    staff_search_text = serializers.SerializerMethodField()
+    artist = ArtistSerializer(read_only=True)
+    works = WorkSerializer(many=True, read_only=True)
 
     class Meta:
         model = Submission
@@ -212,9 +254,16 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "description",
             "submission_type",
             "volume",
+            "artist",
+            "works",
+            "batch_id",
+            "batch_position",
             "artist_name",
             "pronouns",
             "short_bio",
+            "message_to_editors",
+            "submitted_before",
+            "featured_before",
             "socials",
             "email",
             "country_origin",
@@ -223,11 +272,15 @@ class SubmissionSerializer(serializers.ModelSerializer):
             "countries_residence",
             "countries_residence_names",
             "language",
+            "published_elsewhere",
+            "published_where",
+            "anything_else",
             "allow_translation",
             "documents",
             "links",
             "vote_counts",
             "tags",
+            "staff_search_text",
             "created_at",
             "updated_at",
         ]
@@ -246,6 +299,12 @@ class SubmissionSerializer(serializers.ModelSerializer):
                 counts[row["choice"]] = row["count"]
         counts["total"] = sum(counts.values())
         return counts
+
+    def get_staff_search_text(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_staff:
+            return ""
+        return " ".join(comment.body for comment in obj.staff_comments.all())
 
     def get_countries_residence_names(self, obj):
         return [country_name(code) for code in obj.countries_residence]
@@ -315,6 +374,15 @@ class SubmissionSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate_message_to_editors(self, value):
+        return sanitize_multiline(value)
+
+    def validate_published_where(self, value):
+        return sanitize_multiline(value)
+
+    def validate_anything_else(self, value):
+        return sanitize_multiline(value)
+
     def validate_socials(self, value):
         sanitized = sanitize_multiline(value)
         if not sanitized:
@@ -371,16 +439,18 @@ class SubmissionSerializer(serializers.ModelSerializer):
         text_links = []
         visual_links = []
         video_links = []
+        other_links = []
+        named_links = []
         if request:
             allowed_fields = {
                 name for name, field in self.fields.items() if not field.read_only
-            } | {"text_files", "visuals", "text_links", "visual_links", "video_links"}
+            } | {"text_files", "visuals", "text_links", "visual_links", "video_links", "other_links", "named_links"}
             unknown_fields = set(request.data) - allowed_fields
             if unknown_fields:
                 raise serializers.ValidationError("Unknown submission fields were provided.")
             text_files = request.FILES.getlist("text_files")
             visuals = request.FILES.getlist("visuals")
-            for field_name, links in (("text_links", text_links), ("visual_links", visual_links), ("video_links", video_links)):
+            for field_name, links in (("text_links", text_links), ("visual_links", visual_links), ("video_links", video_links), ("other_links", other_links)):
                 if self.instance is not None and field_name in request.data:
                     raise serializers.ValidationError({field_name: "Links cannot be changed here."})
                 for url in submitted_links(request.data, field_name):
@@ -389,10 +459,36 @@ class SubmissionSerializer(serializers.ModelSerializer):
                     except serializers.ValidationError as error:
                         raise serializers.ValidationError({field_name: error.detail}) from error
 
+            if "named_links" in request.data:
+                if self.instance is not None:
+                    raise serializers.ValidationError({"named_links": "Links cannot be changed here."})
+                raw_links = request.data["named_links"]
+                if isinstance(raw_links, str):
+                    try:
+                        raw_links = json.loads(raw_links)
+                    except ValueError as error:
+                        raise serializers.ValidationError({"named_links": "Enter a list of links."}) from error
+                if not isinstance(raw_links, list) or len(raw_links) > 20:
+                    raise serializers.ValidationError({"named_links": "Add at most 20 links."})
+                for item in raw_links:
+                    if not isinstance(item, dict) or set(item) != {"name", "url"} or not isinstance(item["name"], str):
+                        raise serializers.ValidationError({"named_links": "Give each link a name and URL."})
+                    name = sanitize_single_line(item["name"])
+                    if not name or len(name) > 120:
+                        raise serializers.ValidationError({"named_links": "Give each link a name of at most 120 characters."})
+                    try:
+                        url = validate_link_url(item["url"])
+                    except serializers.ValidationError as error:
+                        raise serializers.ValidationError({"named_links": error.detail}) from error
+                    named_links.append({"name": name, "url": url})
+
+        self.validated_named_links = named_links
+
         self.validated_links = {
             SubmissionLink.LinkType.TEXT: text_links,
             SubmissionLink.LinkType.VISUAL: visual_links,
             SubmissionLink.LinkType.VIDEO: video_links,
+            SubmissionLink.LinkType.OTHER: other_links,
         }
 
         if len(text_files) + len(text_links) > settings.SUBMISSION_MAX_TEXT_FILES:
@@ -401,6 +497,8 @@ class SubmissionSerializer(serializers.ModelSerializer):
         if len(visuals) + len(visual_links) + len(video_links) > settings.SUBMISSION_MAX_VISUAL_FILES:
             field = "video_links" if video_links else "visual_links" if visual_links else "visuals"
             raise serializers.ValidationError({field: "Too many visual or video files or links."})
+        if len(other_links) + len(named_links) > 20:
+            raise serializers.ValidationError({"named_links": "Add at most 20 links."})
 
         file_limit = settings.SUBMISSION_MAX_FILE_BYTES
         total_limit = settings.SUBMISSION_MAX_TOTAL_FILES_BYTES
@@ -420,9 +518,22 @@ class SubmissionSerializer(serializers.ModelSerializer):
             )
 
         # A new submission needs at least one file or link.
-        if self.instance is None and not any((text_files, visuals, text_links, visual_links, video_links)):
+        if self.instance is None and not any((text_files, visuals, text_links, visual_links, video_links, other_links, named_links)):
             raise serializers.ValidationError(
                 "A submission must include a file or link."
             )
+
+        published_elsewhere = attrs.get(
+            "published_elsewhere",
+            self.instance.published_elsewhere if self.instance else None,
+        )
+        published_where = attrs.get(
+            "published_where",
+            self.instance.published_where if self.instance else "",
+        )
+        if published_elsewhere is True and not published_where:
+            raise serializers.ValidationError({"published_where": "Tell us where this piece was published."})
+        if published_elsewhere is False:
+            attrs["published_where"] = ""
 
         return attrs

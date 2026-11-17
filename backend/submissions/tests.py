@@ -567,6 +567,23 @@ class SubmissionDownloadsTests(TestCase):
         )
         self.client.force_authenticate(self.user)
 
+    def test_uncategorized_sheet_contains_legacy_submission(self):
+        submission = Submission.objects.create(
+            title="Legacy piece",
+            description="A description for this legacy piece.",
+            submission_type="",
+            artist_name="Legacy Artist",
+            pronouns="they/them",
+            short_bio="A short bio for the artist.",
+            email="legacy@example.com",
+            country_origin="DK",
+            countries_residence=["DK"],
+        )
+        response = self.client.get("/api/downloads/excel/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        workbook = load_workbook(filename=BytesIO(response.content))
+        self.assertEqual(workbook["Uncategorized"]["A2"].value, submission.id)
+
     def test_complete_download_groups_submissions_and_files(self):
         submission = Submission.objects.create(
             title="Archive Piece",
@@ -611,21 +628,29 @@ class SubmissionDownloadsTests(TestCase):
 
         with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
             names = archive.namelist()
-            self.assertIn("poetry/", names)
-            root = f"poetry/Artist_One-{submission.pk}"
+            workbook_name = "rage_submissions_volume3.xlsx"
+            self.assertIn(workbook_name, names)
+            self.assertIn("submissions/", names)
+            root = f"submissions/Artist_One-{submission.pk}"
             self.assertIn(f"{root}/submission_details.txt", names)
-            self.assertIn(f"{root}/legacy.txt", names)
-            self.assertIn(f"{root}/poem.pdf", names)
-            self.assertIn(f"{root}/image.tiff", names)
+            self.assertIn(f"{root}/piece-1/piece_details.txt", names)
+            self.assertIn(f"{root}/piece-1/legacy.txt", names)
+            self.assertIn(f"{root}/piece-1/poem.pdf", names)
+            self.assertIn(f"{root}/piece-1/image.tiff", names)
 
             details = archive.read(f"{root}/submission_details.txt").decode("utf-8")
-            self.assertIn("Title: Archive Piece", details)
+            self.assertIn("1. Archive Piece (Poetry)", details)
             self.assertIn("Email: artist@example.com", details)
             self.assertIn("Country of Origin: Denmark, Germany", details)
-            self.assertIn("- legacy.txt", details)
-            self.assertIn("- poem.pdf", details)
-            self.assertIn("- image.tiff", details)
-            self.assertIn("- Text: https://docs.google.com/document/d/first/edit", details)
+            piece_details = archive.read(f"{root}/piece-1/piece_details.txt").decode("utf-8")
+            self.assertIn("Title: Archive Piece", piece_details)
+            self.assertIn("- legacy.txt", piece_details)
+            self.assertIn("- poem.pdf", piece_details)
+            self.assertIn("- image.tiff", piece_details)
+            self.assertIn("- Text: https://docs.google.com/document/d/first/edit", piece_details)
+            workbook = load_workbook(BytesIO(archive.read(workbook_name)))
+            self.assertEqual(workbook["Submissions"]["A2"].value, submission.pk)
+            self.assertEqual(workbook["Poetry"]["E2"].value, "Archive Piece")
         self.assertTrue(response.closed)
 
     def test_complete_download_separates_submissions_with_same_artist_name(self):
@@ -651,7 +676,7 @@ class SubmissionDownloadsTests(TestCase):
         with _build_complete_download_zip() as complete_zip, ZipFile(complete_zip) as archive:
             for submission, content in zip(submissions, (b"first", b"second")):
                 self.assertEqual(
-                    archive.read(f"poetry/Artist_One-{submission.pk}/poem.pdf"),
+                    archive.read(f"submissions/Artist_One-{submission.pk}/piece-1/poem.pdf"),
                     content,
                 )
 
@@ -699,53 +724,65 @@ class SubmissionDownloadsTests(TestCase):
         self.assertIn('filename="rage_submissions_volume3.xlsx"', response["Content-Disposition"])
 
         workbook = load_workbook(filename=BytesIO(response.content))
+        self.assertIn("Submissions", workbook.sheetnames)
         self.assertIn("Poetry", workbook.sheetnames)
         self.assertIn("Long form writing", workbook.sheetnames)
+        self.assertNotIn("TBD", workbook.sheetnames)
+        self.assertIn("Uncategorized", workbook.sheetnames)
         self.assertIn("Votes", workbook.sheetnames)
+        self.assertIn("Comments", workbook.sheetnames)
+        self.assertIn("Files", workbook.sheetnames)
         self.assertIn("Links", workbook.sheetnames)
-        self.assertEqual(workbook["Links"]["D2"].value, "https://docs.google.com/document/d/second/edit")
+        self.assertEqual(workbook["Links"]["F2"].value, "https://docs.google.com/document/d/second/edit")
 
         sheet = workbook["Long form writing"]
         header_row = [cell.value for cell in sheet[1]]
         submission_row = [cell.value for cell in sheet[2]]
         expected_headers = [
-            "ID",
-            "Title",
-            "Year",
-            "Description",
-            "Submission Type",
+            "Submission ID",
+            "Piece Number",
+            "Piece ID",
             "Artist Name",
-            "Pronouns",
-            "Short Bio",
-            "Socials",
-            "Email",
-            "Country Origin",
-            "Countries Residence",
+            "Title",
+            "Type",
+            "Description",
+            "Year",
             "Language",
-            "Created At",
-            "Tags",
-            "Yes Votes",
-            "No Votes",
-            "See Comment Votes",
-            "Total Votes",
+            "Published Elsewhere",
+            "Published Where",
+            "Anything Else",
+            "File Count",
+            "Link Count",
         ]
 
         self.assertEqual(header_row, expected_headers)
-        self.assertEqual(submission_row[1], "Spreadsheet Piece")
-        self.assertEqual(submission_row[2], "2026")
-        self.assertEqual(submission_row[4], "Long form writing")
-        self.assertEqual(submission_row[5], "Artist Two")
-        self.assertEqual(submission_row[9], "artist.two@example.com")
-        self.assertEqual(submission_row[10], "Denmark, Germany")
-        self.assertEqual(submission_row[11], "Germany")
-        self.assertEqual(submission_row[14], "for review, selected")
-        self.assertEqual(submission_row[15:19], [1, 0, 1, 2])
+        row = dict(zip(header_row, submission_row))
+        self.assertEqual(row["Submission ID"], submission.pk)
+        self.assertEqual(row["Piece Number"], 1)
+        self.assertEqual(row["Title"], "Spreadsheet Piece")
+        self.assertEqual(row["Year"], "2026")
+        self.assertEqual(row["Type"], "Long form writing")
+        self.assertEqual(row["Artist Name"], "Artist Two")
+        self.assertEqual((row["File Count"], row["Link Count"]), (0, 1))
+
+        overview = workbook["Submissions"]
+        overview_headers = [cell.value for cell in overview[1]]
+        overview_row = dict(zip(overview_headers, [cell.value for cell in overview[2]]))
+        self.assertEqual(overview_row["Submission ID"], submission.pk)
+        self.assertEqual(overview_row["Artist Name"], "Artist Two")
+        self.assertEqual(overview_row["Email"], "artist.two@example.com")
+        self.assertEqual(overview_row["Countries of Origin"], "Denmark, Germany")
+        self.assertEqual(overview_row["Countries of Residence"], "Germany")
+        self.assertEqual(overview_row["Piece Count"], 1)
+        self.assertEqual(overview_row["Piece Titles"], "Spreadsheet Piece")
+        self.assertEqual(overview_row["Tags"], "for review, selected")
+        self.assertEqual([overview_row[key] for key in ("Yes Votes", "No Votes", "See Comment Votes", "Total Votes")], [1, 0, 1, 2])
 
         votes_sheet = workbook["Votes"]
         self.assertEqual(
             [cell.value for cell in votes_sheet[1]],
             [
-                "Submission ID", "Submission Title", "Submission Type",
+                "Submission ID", "Artist Name", "Piece Titles",
                 "Voter", "Vote", "Last Changed",
             ],
         )

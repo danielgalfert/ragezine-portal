@@ -69,6 +69,11 @@ function scoreTitle(title, query) {
   return score;
 }
 
+export function titleMatchesQuery(title, input) {
+  const query = normalize(input);
+  return Boolean(query) && scoreTitle(title, query) !== null;
+}
+
 export function searchSubmissionsByTitle(submissions, input) {
   const query = normalize(input);
   if (!query) return submissions;

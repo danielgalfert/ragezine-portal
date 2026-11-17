@@ -9,6 +9,14 @@ export async function createSubmission(payload, onUploadProgress) {
   return response.data;
 }
 
+export async function createSubmissionBatch(payload, onUploadProgress) {
+  const response = await client.post("/submissions/batch/", payload, {
+    timeout: 0,
+    onUploadProgress,
+  });
+  return response.data;
+}
+
 export async function getSubmissions() {
   const response = await client.get("/submissions/");
   return response.data;
