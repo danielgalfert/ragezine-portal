@@ -1,0 +1,48 @@
+@font-face {
+  font-family: "NewEdge666";
+  src: url("/fonts/NewEdge666-RegularRounded.otf") format("opentype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "NewEdge666UltraBoldSlanted";
+  src: url("/fonts/NewEdge666-UltraBoldRoundedSlanted.otf") format("opentype");
+  font-display: swap;
+}
+* { box-sizing: border-box; }
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #090512;
+  background: linear-gradient(145deg, #cebdef, #ff00c3 65%, #b80000);
+  font: 18px/1.5 "NewEdge666", sans-serif;
+}
+.error-shell {
+  width: min(660px, 100%);
+  padding: clamp(28px, 6vw, 64px);
+  background: #fae9f8;
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(30, 0, 40, .22);
+}
+.error-code {
+  margin: 0;
+  font-family: "NewEdge666UltraBoldSlanted", sans-serif;
+  font-size: clamp(4rem, 13vw, 6rem);
+  line-height: 1;
+}
+h1 { margin: 20px 0 12px; font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.1; }
+.error-shell > p:not(.error-code) { max-width: 38ch; }
+a {
+  display: inline-block;
+  margin-top: 22px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #3320a7;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+a:hover { background: #1d30d7; }
+a:focus-visible { outline: 3px solid #090512; outline-offset: 3px; }
