@@ -187,8 +187,10 @@
 }
 
 .submit-intro h2 {
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(9, 5, 18, 0.45);
+  font-family: "NewEdge666UltraBoldSlanted", sans-serif;
+  color: #000;
+  text-align: center;
+  text-shadow: none;
 }
 
 .submission-content {
