@@ -329,15 +329,15 @@ export default function SubmissionForm() {
 
         <section className="portal-form-block" aria-labelledby="submission-info-heading">
           <h3 id="submission-info-heading">Submission information</h3>
-          <p className="portal-help">Your artist information applies to all pieces.</p>
+          <p className="portal-help">Your artist information applies to all submissions.</p>
           {works.map((work, index) => (
             <article className="portal-work-card" key={work.key}>
-              {works.length > 1 && <button type="button" className="portal-work-remove" aria-label={`Remove piece ${index + 1}`} onClick={() => setWorks((current) => current.filter((item) => item.key !== work.key))}>−</button>}
+              {works.length > 1 && <button type="button" className="portal-work-remove" aria-label={`Remove submission ${index + 1}`} onClick={() => setWorks((current) => current.filter((item) => item.key !== work.key))}>−</button>}
               <div className="portal-grid portal-work-core">
                 <FormField label="Submission type *">
                   <select className="portal-input" value={work.submission_type} onChange={(event) => updateWork(work.key, "submission_type", event.target.value)}><option value="">Choose one...</option>{TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
                 </FormField>
-                <FormField label="Title of your work(s) *">
+                <FormField label="Title of your submission *">
                   <input className="portal-input" value={work.title} onChange={(event) => updateWork(work.key, "title", event.target.value)} onBlur={(event) => updateWork(work.key, "title", sanitizeSingleLine(event.target.value))} />
                 </FormField>
                 <FormField label="Year (if relevant)">
@@ -347,7 +347,7 @@ export default function SubmissionForm() {
                   <select className="portal-input" value={work.language} onChange={(event) => updateWork(work.key, "language", event.target.value)}>{LANGUAGES.map((language) => <option key={language} value={language}>{language}</option>)}</select>
                 </FormField>
               </div>
-              <FormField label="Description of work(s), including materials if relevant">
+              <FormField label="Description of your submission, including materials if relevant">
                 <textarea className="portal-textarea" value={work.description} onChange={(event) => updateWork(work.key, "description", event.target.value)} onBlur={(event) => updateWork(work.key, "description", sanitizeMultiline(event.target.value))} />
               </FormField>
               <div className="portal-upload-grid">
@@ -366,11 +366,11 @@ export default function SubmissionForm() {
                   {work.namedLinks.length > 0 && <ul className="portal-filelist">{work.namedLinks.map((link, linkIndex) => <li key={`${link.name}-${linkIndex}`}><span><strong>{link.name}</strong><br />{link.url}</span><button type="button" className="smallBtn" onClick={() => removeFromWork(work.key, "namedLinks", linkIndex)} aria-label={`Remove ${link.name}`}>remove</button></li>)}</ul>}
                 </div>
               </div>
-              <p className="portal-help portal-upload-limit">Size: up to 5 GiB per file; 10 GiB total for all pieces.</p>
-              <p className="portal-help">Set access so the RAGE Zine team can open your work.</p>
+              <p className="portal-help portal-upload-limit">Size: up to 5 GiB per file; 10 GiB total for all submissions.</p>
+              <p className="portal-help">Set access so the RAGE Zine team can open your files.</p>
               <div className="portal-grid portal-work-footer">
                 <div className="portal-publication-group">
-                  <FormField label="Has this piece been published elsewhere? *">
+                  <FormField label="Has this submission been published elsewhere? *">
                     <select className="portal-input" value={work.published_elsewhere} onChange={(event) => updateWork(work.key, "published_elsewhere", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
                   </FormField>
                   {work.published_elsewhere === "yes" && <FormField label="If yes, where? *"><input className="portal-input" value={work.published_where} onChange={(event) => updateWork(work.key, "published_where", event.target.value)} onBlur={(event) => updateWork(work.key, "published_where", sanitizeSingleLine(event.target.value))} /></FormField>}
@@ -380,10 +380,10 @@ export default function SubmissionForm() {
                   <textarea className="portal-textarea" value={work.anything_else} onChange={(event) => updateWork(work.key, "anything_else", event.target.value)} onBlur={(event) => updateWork(work.key, "anything_else", sanitizeMultiline(event.target.value))} />
                 </FormField>
               </div>
-              <p className="portal-help">Filename reminder: <span className="code">Artist-Name_Artwork-Title</span></p>
+              <p className="portal-help">Filename reminder: <span className="code">Artist-Name_Submission-Title</span></p>
             </article>
           ))}
-          {works.length < MAX_WORKS && <button type="button" className="portal-work-add" aria-label="Add another piece" onClick={() => setWorks((current) => [...current, newWork(nextWorkKey.current++)])}>+</button>}
+          {works.length < MAX_WORKS && <button type="button" className="portal-work-add" aria-label="Add another submission" onClick={() => setWorks((current) => [...current, newWork(nextWorkKey.current++)])}>+</button>}
         </section>
 
         <div className="portal-actions">

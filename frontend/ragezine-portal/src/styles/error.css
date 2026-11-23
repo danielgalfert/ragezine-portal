@@ -1,0 +1,75 @@
+.error-stage {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.error-panel {
+  width: min(680px, 100%);
+  padding: clamp(28px, 6vw, 64px);
+  border-radius: 16px;
+  background: var(--soft-pink);
+  box-shadow: 0 18px 44px rgba(30, 0, 40, 0.22);
+}
+
+.error-panel .error-number {
+  margin: 0;
+  font-family: "NewEdge666UltraBoldSlanted", sans-serif;
+  font-size: clamp(4rem, 13vw, 6rem);
+  line-height: 1;
+}
+
+.error-panel h1 {
+  margin: 20px 0 12px;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 1.1;
+}
+
+.error-panel > p:not(.error-number) {
+  max-width: 38ch;
+  font-size: clamp(1rem, 2.2vw, 1.25rem);
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 30px;
+}
+
+.error-actions a,
+.error-actions button {
+  min-height: 44px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--electric-blue);
+  color: #fff;
+  font-family: "NewEdge666SemiBold", sans-serif;
+  font-size: 1rem;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.error-actions a:last-child {
+  background: transparent;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.error-actions a:hover,
+.error-actions button:hover {
+  background: #24108c;
+  color: #fff;
+}
+
+.error-actions a:focus-visible,
+.error-actions button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}

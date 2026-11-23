@@ -75,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "ragezine_portal.error_middleware.PortalErrorMiddleware",
 ]
 
 ROOT_URLCONF = "ragezine_portal.urls"
@@ -175,7 +176,7 @@ EMAIL_HOST_USER = os.getenv("DJANGO_EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("DJANGO_EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("DJANGO_EMAIL_USE_TLS", "0") in {"1", "true", "True"}
 EMAIL_USE_SSL = os.getenv("DJANGO_EMAIL_USE_SSL", "0") in {"1", "true", "True"}
-DEFAULT_FROM_EMAIL = os.getenv("SUBMISSION_EMAIL_FROM", "no-reply@example.com")
+DEFAULT_FROM_EMAIL = os.getenv("SUBMISSION_EMAIL_FROM", "submissions@ragezine.com")
 SUBMISSION_EMAIL_FROM = os.getenv("SUBMISSION_EMAIL_FROM", DEFAULT_FROM_EMAIL)
 SUBMISSION_EMAIL_SUBJECT = os.getenv(
     "SUBMISSION_EMAIL_SUBJECT",
@@ -190,6 +191,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = os.getenv("DJANGO_MEDIA_URL", "/media/")
 MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
 
