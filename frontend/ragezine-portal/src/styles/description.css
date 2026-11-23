@@ -85,8 +85,9 @@
 }
 
 .hero-letter-pair {
-  letter-spacing: 0.015em;
-  transform: scaleY(1.05);
+  font-family: "NewEdge666SemiBoldSlanted", sans-serif;
+  letter-spacing: 0;
+  margin-inline: 0.05em;
 }
 
 .hero-letter-regular {
