@@ -78,7 +78,7 @@ function SubmissionGroup({ submission, works, onDelete, deletingId, canDeleteSub
           </button>}
         </div>
       </header>
-      <div className="dashboard-block-list" aria-label={`Pieces by ${artistName}`}>
+      <div className="dashboard-block-list" aria-label={`Submissions by ${artistName}`}>
         {works.map((work, index) => (
           <div className="dashboard-block-row" key={work.id || `legacy-${submission.id}-${index}`}>
             <strong className="dashboard-block-title">{work.title}</strong>
@@ -107,6 +107,7 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
   const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
   const [keywordQuery, setKeywordQuery] = useState("");
+  const [idQuery, setIdQuery] = useState("");
   const [sortCategory, setSortCategory] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
   const [selectedTagId, setSelectedTagId] = useState("");
@@ -153,8 +154,11 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
     const tagged = selectedTagId
       ? submissions.filter((submission) => submission.tags?.some((tag) => String(tag.id) === selectedTagId))
       : submissions;
-    return searchSubmissionsByKeyword(tagged, keywordQuery);
-  }, [submissions, keywordQuery, selectedTagId]);
+    const byId = idQuery
+      ? tagged.filter((submission) => String(submission.id) === idQuery)
+      : tagged;
+    return searchSubmissionsByKeyword(byId, keywordQuery);
+  }, [submissions, keywordQuery, idQuery, selectedTagId]);
 
   const filteredSubmissions = useMemo(
     () => sortSubmissions(selectedType
@@ -196,6 +200,11 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
 
   function handleKeywordQueryChange(event) {
     setKeywordQuery(event.target.value);
+    setPage(1);
+  }
+
+  function handleIdQueryChange(event) {
+    setIdQuery(event.target.value.replace(/\D/g, ""));
     setPage(1);
   }
 
@@ -274,12 +283,24 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
                 <option value="asc">{sortCategory === "date" ? "oldest first" : "A to Z"}</option>
               </select>
             </div>
+            <div className="dashboard-id-filter">
+              <label htmlFor="dashboard-id-search">search ID</label>
+              <input
+                id="dashboard-id-search"
+                type="search"
+                inputMode="numeric"
+                placeholder="ID"
+                value={idQuery}
+                onChange={handleIdQueryChange}
+                autoComplete="off"
+              />
+            </div>
           </div>
         </div>
         <div className="dashboard-header">
           <div className="dashboard-summary">
             <div className="dashboard-summary-card">
-              <span className="dashboard-summary-label">{keywordQuery.trim() || selectedTagId ? "results" : "total"}</span>
+              <span className="dashboard-summary-label">{keywordQuery.trim() || idQuery || selectedTagId ? "results" : "total"}</span>
               <strong>{searchMatches.length}</strong>
             </div>
             {summary.map((item) => (
@@ -335,7 +356,7 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
             <div className="dashboard-toolbar">
               <p className="dashboard-range" role="status">
                 Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of {filteredSubmissions.length}
-                {(keywordQuery.trim() || selectedTagId || selectedType) && ` results (${submissions.length} total)`}
+                {(keywordQuery.trim() || idQuery || selectedTagId || selectedType) && ` results (${submissions.length} total)`}
               </p>
               <div className="dashboard-pagination">
                 <button
