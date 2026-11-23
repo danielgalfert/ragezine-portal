@@ -331,20 +331,22 @@ class SubmissionBatchTests(TestCase):
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        SUBMISSION_EMAIL_FROM="editor@ragezine.test",
+        SUBMISSION_EMAIL_FROM="submissions@ragezine.com",
     )
-    def test_batch_sends_one_receipt_with_both_titles(self):
+    def test_batch_sends_one_receipt_with_submission_id(self):
         upload = SimpleUploadedFile("poem.pdf", b"%PDF-1.4\ncontent", content_type="application/pdf")
         response = self.post_batch(submission_0_text_files=upload)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["artist@example.com"])
-        self.assertIn("First Piece", mail.outbox[0].body)
-        self.assertIn("Second Piece", mail.outbox[0].body)
+        self.assertEqual(mail.outbox[0].from_email, "submissions@ragezine.com")
+        self.assertIn(f"Submission ID: {response.data['submission']['id']}", mail.outbox[0].body)
+        self.assertNotIn("First Piece", mail.outbox[0].body)
+        self.assertNotIn("Second Piece", mail.outbox[0].body)
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        SUBMISSION_EMAIL_FROM="editor@ragezine.test",
+        SUBMISSION_EMAIL_FROM="submissions@ragezine.com",
     )
     def test_later_receipt_uses_new_reference(self):
         first = self.post_batch(pieces=[self.pieces[1]])
@@ -352,11 +354,10 @@ class SubmissionBatchTests(TestCase):
         second = self.post_batch(pieces=[later])
         self.assertEqual((first.status_code, second.status_code), (201, 201))
         self.assertEqual(len(mail.outbox), 2)
-        self.assertIn("with 1 piece", mail.outbox[1].body)
-        self.assertIn("Later Piece", mail.outbox[1].body)
+        self.assertIn(f"Submission ID: {second.data['submission']['id']}", mail.outbox[1].body)
+        self.assertNotIn("Later Piece", mail.outbox[1].body)
         self.assertNotIn("Second Piece", mail.outbox[1].body)
         self.assertNotEqual(first.data["submission"]["id"], second.data["submission"]["id"])
-        self.assertIn(f"submission #{second.data['submission']['id']}", mail.outbox[1].body)
 
     def test_vote_and_export_cover_the_whole_submission(self):
         upload = SimpleUploadedFile("poem.pdf", b"%PDF-1.4\ncontent", content_type="application/pdf")

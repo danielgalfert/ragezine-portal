@@ -142,7 +142,7 @@ function WorkBlock({ work, number }) {
   return (
     <section className="details-card details-work-block" aria-labelledby={`work-${work.id}-heading`}>
       <div className="details-work-heading">
-        <h2 id={`work-${work.id}-heading`}>Piece {number}</h2>
+        <h2 id={`work-${work.id}-heading`}>Entry {number}</h2>
       </div>
       <dl className="details-grid">
         <Detail label="Title" value={work.title} />
@@ -157,7 +157,7 @@ function WorkBlock({ work, number }) {
       <h3>Files ({files.length})</h3>
       {files.length === 0 ? <p>No files are attached.</p> : (
         <div className="details-files-layout">
-          <div className="details-file-list" aria-label={`Files for piece ${number}`}>
+          <div className="details-file-list" aria-label={`Files for entry ${number}`}>
             {files.map((file) => (
               <button key={file.id} type="button" className={`details-file-button${file.id === selectedFileId ? " is-selected" : ""}`} onClick={() => setSelectedFileId(file.id)} aria-pressed={file.id === selectedFileId}>
                 <strong>{file.original_filename || `File ${file.id}`}</strong>
