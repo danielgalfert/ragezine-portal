@@ -294,7 +294,7 @@ export default function SubmissionForm() {
           <div className="portal-grid portal-artist-identity">
             <FormField label="Pronouns *">
               <div className="portal-inline-entry portal-pronoun-entry">
-                <input className="portal-input" value={pronounInput} maxLength={40} placeholder="she/her or your own" aria-label="Add pronouns" onChange={(event) => setPronounInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPronoun(pronounInput); } }} />
+                <input className="portal-input" value={pronounInput} maxLength={40} placeholder="Click one of the suggestions or write your own." aria-label="Add pronouns" onChange={(event) => setPronounInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addPronoun(pronounInput); } }} />
                 <button type="button" className="smallBtn portal-inline-btn" onClick={() => addPronoun(pronounInput)}>add</button>
               </div>
               <div className="portal-help portal-pronoun-suggestions-label">Suggestions:</div>
