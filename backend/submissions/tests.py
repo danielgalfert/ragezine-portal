@@ -681,7 +681,7 @@ class SubmissionDownloadsTests(TestCase):
 
         with ZipFile(BytesIO(b"".join(response.streaming_content))) as archive:
             names = archive.namelist()
-            workbook_name = "rage_submissions_volume3.xlsx"
+            workbook_name = "rage_submissions_volume4.xlsx"
             self.assertIn(workbook_name, names)
             self.assertIn("submissions/", names)
             root = f"submissions/Artist_One-{submission.pk}"
@@ -774,7 +774,7 @@ class SubmissionDownloadsTests(TestCase):
             response["Content-Type"],
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        self.assertIn('filename="rage_submissions_volume3.xlsx"', response["Content-Disposition"])
+        self.assertIn('filename="rage_submissions_volume4.xlsx"', response["Content-Disposition"])
 
         workbook = load_workbook(filename=BytesIO(response.content))
         self.assertIn("Submissions", workbook.sheetnames)
@@ -820,6 +820,7 @@ class SubmissionDownloadsTests(TestCase):
 
         overview = workbook["Submissions"]
         overview_headers = [cell.value for cell in overview[1]]
+        self.assertNotIn("Volume", overview_headers)
         overview_row = dict(zip(overview_headers, [cell.value for cell in overview[2]]))
         self.assertEqual(overview_row["Submission ID"], submission.pk)
         self.assertEqual(overview_row["Artist Name"], "Artist Two")
