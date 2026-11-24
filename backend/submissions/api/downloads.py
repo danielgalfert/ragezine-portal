@@ -43,6 +43,7 @@ SUBMISSION_COLUMNS = [
     ("submitted_at", "Submitted At"),
     ("piece_count", "Piece Count"),
     ("piece_titles", "Piece Titles"),
+    ("submission_type", "Type"),
     ("tags", "Tags"),
     ("vote_yes", "Yes Votes"),
     ("vote_no", "No Votes"),
@@ -225,6 +226,7 @@ def _submission_excel_row(submission, works):
         "submitted_at": _excel_datetime(submission.created_at),
         "piece_count": len(works),
         "piece_titles": ", ".join(work.title for work in works),
+        "submission_type": ", ".join(work.get_submission_type_display() for work in works),
         "tags": ", ".join(tag.name for tag in submission.tags.all()),
         "vote_total": sum(vote_counts.values()),
     }

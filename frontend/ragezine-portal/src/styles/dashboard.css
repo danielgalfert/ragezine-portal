@@ -2,6 +2,12 @@
   padding-top: 104px;
 }
 
+.dashboard-export-error {
+  margin: 0 clamp(16px, 3vw, 50px) 16px;
+  color: #5b1433;
+  font-weight: 700;
+}
+
 .dashboard-section {
   padding: 0 clamp(16px, 3vw, 50px) 80px;
 }

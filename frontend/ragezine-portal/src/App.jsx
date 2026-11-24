@@ -14,8 +14,8 @@ export default function App() {
     const isAdminPage = pathname === "/login" || pathname === "/dashboard" || pathname.startsWith("/dashboard/");
     const isKnownPage = pathname === "/" || pathname === "/login"
       || pathname === "/dashboard" || /^\/dashboard\/submissions\/[^/]+$/.test(pathname);
-    document.title = !isKnownPage ? "Page not found — RAGE Zine"
-      : isAdminPage ? "RAGE Zine admin portal" : "RAGE Zine submission portal";
+    document.title = !isKnownPage ? "Page Not Found — RAGE Zine"
+      : isAdminPage ? "RAGE Zine Admin Portal" : "RAGE Zine Submission Portal";
   }, [pathname]);
 
   return (

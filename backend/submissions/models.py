@@ -77,7 +77,7 @@ class Submission(models.Model):
     country_origin = models.TextField()
     countries_residence = settings.DATABASE_HANDLER.residence_field()
 
-    language = models.CharField(max_length=64, default="English")
+    language = models.CharField(max_length=700, default="English")
     published_elsewhere = models.BooleanField(null=True, blank=True)
     published_where = models.TextField(blank=True)
     anything_else = models.TextField(blank=True)
@@ -106,7 +106,7 @@ class Work(models.Model):
     year = models.CharField(max_length=32, blank=True)
     description = models.TextField(blank=True)
     submission_type = models.CharField(max_length=32, choices=Submission.SubmissionType.choices)
-    language = models.CharField(max_length=64, default="English")
+    language = models.CharField(max_length=700, default="English")
     published_elsewhere = models.BooleanField(null=True, blank=True)
     published_where = models.TextField(blank=True)
     anything_else = models.TextField(blank=True)

@@ -22,6 +22,11 @@ export async function getSubmissions() {
   return response.data;
 }
 
+export async function getDashboardSubmissions(params) {
+  const response = await client.get("/submissions/dashboard/", { params });
+  return response.data;
+}
+
 export async function getSubmissionById(id) {
   const response = await client.get(`/submissions/${id}/`);
   return response.data;
@@ -69,6 +74,11 @@ export async function addSubmissionComment(id, body) {
   await getCsrfCookie();
   const response = await client.post(`/submissions/${id}/comments/`, { body });
   return response.data;
+}
+
+export async function removeSubmissionComment(id, commentId) {
+  await getCsrfCookie();
+  await client.delete(`/submissions/${id}/comments/${commentId}/`);
 }
 
 export function getSubmissionPreviewUrl(path) {

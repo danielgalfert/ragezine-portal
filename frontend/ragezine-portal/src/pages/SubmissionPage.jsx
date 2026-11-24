@@ -39,13 +39,13 @@ export default function SubmissionPage() {
       <section className="submit" id="submit">
         <div className="submit-shell">
           <div className="submit-intro">
-            <h2>Submit</h2>
+            <h2>Submit Here</h2>
             <div className="submission-content">
               <div className="guideline-card">
-                <p><span className="sub">Language:</span><br />English is preferred, but we occasionally accept submissions in other languages, if you are happy for the submission to be accompanied by an English translation. Our team can help with translations in numerous languages.</p>
+                <p><span className="sub">Language:</span><br />English is preferred, but we occasionally accept submissions in other languages if you are happy for the submission to be accompanied by an English translation. Our team can help with translations in numerous languages.</p>
               </div>
               <div className="guideline-card">
-                <p><span className="sub">Format:</span><br />Text: Word, Google Doc or PDF (max. 1500 words)<br />Visual: TIFF at 300 dpi, PNG, or link<br />Video: MP4, MOV, or WebM, or link<br />We recommend up to 5 visual and video files or links in total.</p>
+                <p><span className="sub">Format:</span><br />Text: Word, PDF, or a Google Doc link (max. 1500 words)<br />Visual: TIFF at 300 dpi, PNG, or link<br />Video: MP4, MOV, or WebM, or link</p>
               </div>
               <div className="guideline-card">
                 <p><span className="sub">Filename:</span><br />Artist-Name_Submission-Title</p>
