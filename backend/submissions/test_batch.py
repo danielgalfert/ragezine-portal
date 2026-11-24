@@ -6,12 +6,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
 from django.core import mail
 from rest_framework.test import APIClient
 from openpyxl import load_workbook
 
-from submissions.models import Artist, Submission, SubmissionComment, SubmissionVote, Tag, Work
+from submissions.models import Artist, Submission, SubmissionComment, SubmissionDocument, SubmissionVote, Tag, Work
+from submissions.repositories import SubmissionDocumentRepository
 
 
 class SubmissionBatchTests(TestCase):
@@ -89,6 +91,15 @@ class SubmissionBatchTests(TestCase):
         self.assertEqual(len(response.data["submission"]["works"]), 2)
         self.assertTrue(all(work.created_at for work in (first, second)))
         receipt.assert_called_once()
+
+    def test_accepts_multiple_languages_including_a_custom_language(self):
+        pieces = [{**self.pieces[0], "language": "English, Hokkien"}]
+        upload = SimpleUploadedFile("poem.pdf", b"%PDF-1.4\ncontent", content_type="application/pdf")
+        with patch("submissions.api.submission_views.send_batch_receipt"):
+            response = self.post_batch(pieces=pieces, submission_0_text_files=upload)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Work.objects.get().language, "English, Hokkien")
 
     def test_work_download_contains_only_selected_work(self):
         first_file = SimpleUploadedFile("first.pdf", b"%PDF-1.4\nfirst", content_type="application/pdf")
@@ -266,6 +277,37 @@ class SubmissionBatchTests(TestCase):
         receipt.assert_called_once()
         self.assertEqual(receipt.call_args.args[0].pk, response.data["id"])
 
+    def test_single_endpoint_removes_saved_files_after_database_failure(self):
+        original_create = SubmissionDocumentRepository.create_text_document
+        stored_names = []
+
+        def create_then_fail(repository, submission, uploaded_file, work=None):
+            if stored_names:
+                raise RuntimeError("second file failed")
+            document = original_create(repository, submission, uploaded_file, work=work)
+            stored_names.append(document.file.name)
+            return document
+
+        payload = {
+            **self.artist,
+            "title": "A valid title",
+            "submission_type": "poetry",
+            "description": "A complete description of the work.",
+            "published_elsewhere": False,
+            "text_files": [
+                SimpleUploadedFile("first.pdf", b"%PDF-1.4\nfirst", content_type="application/pdf"),
+                SimpleUploadedFile("second.pdf", b"%PDF-1.4\nsecond", content_type="application/pdf"),
+            ],
+        }
+        with patch.object(SubmissionDocumentRepository, "create_text_document", autospec=True, side_effect=create_then_fail):
+            with self.assertRaisesMessage(RuntimeError, "second file failed"):
+                self.client.post("/api/submissions/", payload, format="multipart", REMOTE_ADDR="198.51.100.232")
+
+        self.assertEqual(Submission.objects.count(), 0)
+        self.assertEqual(SubmissionDocument.objects.count(), 0)
+        self.assertEqual(len(stored_names), 1)
+        self.assertFalse(default_storage.exists(stored_names[0]))
+
     def test_invalid_second_piece_creates_nothing(self):
         pieces = [self.pieces[0], {**self.pieces[1], "title": "No"}]
         response = self.post_batch(pieces=pieces)
@@ -386,6 +428,7 @@ class SubmissionBatchTests(TestCase):
         self.assertEqual(overview_row["Artist ID"], submission.artist_id)
         self.assertEqual(overview_row["Piece Count"], 2)
         self.assertEqual(overview_row["Piece Titles"], "First Piece, Second Piece")
+        self.assertEqual(overview_row["Type"], "Poetry, Other")
         self.assertEqual(overview_row["Yes Votes"], 1)
         self.assertEqual(workbook["Files"]["C2"].value, "First Piece")
         self.assertEqual(workbook["Files"]["E2"].value, "poem.pdf")

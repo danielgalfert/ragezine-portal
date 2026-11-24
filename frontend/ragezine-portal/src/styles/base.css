@@ -23,6 +23,12 @@
 }
 
 @font-face {
+  font-family: "NewEdge666LightSlanted";
+  src: url("/fonts/NewEdge666-LightRoundedSlanted.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
   font-family: "NewEdge666SemiBold";
   src: url("/fonts/NewEdge666-SemiBoldRounded.otf") format("opentype");
   font-display: swap;

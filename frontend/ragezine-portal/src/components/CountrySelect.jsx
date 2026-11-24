@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import Select from "react-select";
 import countries from "i18n-iso-countries";
 import en from "i18n-iso-countries/langs/en.json";
@@ -12,7 +12,10 @@ export default function CountrySelect({
   placeholder = "Select a country...",
   isClearable = true,
   isMulti = false,
+  id,
 }) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
   const options = useMemo(() => {
     return Object.entries(countries.getNames("en", { select: "official" }))
       .map(([code, label]) => ({
@@ -37,7 +40,7 @@ export default function CountrySelect({
 
   return (
     <Select
-      inputId={name}
+      inputId={inputId}
       name={name}
       options={options}
       value={selectedOption}

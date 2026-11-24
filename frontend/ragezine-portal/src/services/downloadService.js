@@ -44,6 +44,7 @@ export function downloadCompleteArchive() {
 export async function downloadExcelReview() {
   const response = await client.get("/downloads/excel/", {
     responseType: "blob",
+    timeout: 0,
   });
 
   return buildDownloadPayload(response, "submissions.xlsx");

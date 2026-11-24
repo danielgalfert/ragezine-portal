@@ -1,20 +1,24 @@
 import logging
 import json
 import re
+from collections import Counter
+from itertools import chain
 from types import SimpleNamespace
 from uuid import uuid4
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
+from django.db.models.functions import Coalesce, Lower
 from django.shortcuts import get_object_or_404
 from django.utils.datastructures import MultiValueDict
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from submissions.api.email import send_batch_receipt, send_submission_receipt
+from submissions.api.dashboard_search import query_words, work_matches
 from submissions.api.permissions import CanDeleteSubmission
 from submissions.api.throttles import SubmissionCreateThrottle
 from submissions.models import Artist, Submission, SubmissionDocument, SubmissionLink, SubmissionVote, Tag, Work
@@ -43,6 +47,11 @@ PIECE_FIELDS = {
     "published_elsewhere", "published_where", "anything_else",
 }
 FILE_FIELD_PATTERN = re.compile(r"^submission_(\d+)_(text_files|visuals)$")
+KNOWN_TYPES = {choice for choice, _ in Submission.SubmissionType.choices}
+
+
+def work_category(work_type):
+    return work_type if work_type in KNOWN_TYPES else "uncategorized"
 
 
 def _create_submission(data, repository, batch_id=None):
@@ -94,6 +103,110 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             ),
         )
 
+    @action(detail=False, methods=["get"])
+    def dashboard(self, request):
+        params = request.query_params
+        try:
+            page = max(1, int(params.get("page", "1")))
+        except ValueError as error:
+            raise ValidationError({"page": "Enter a page number."}) from error
+        sort = params.get("sort", "date_desc")
+        if sort not in {"date_asc", "date_desc", "artist_asc", "artist_desc"}:
+            raise ValidationError({"sort": "Invalid sort order."})
+        selected_type = params.get("type", "")
+        valid_types = KNOWN_TYPES | {"uncategorized"}
+        if selected_type and selected_type not in valid_types:
+            raise ValidationError({"type": "Invalid submission type."})
+
+        submissions = Submission.objects.all()
+        total = submissions.count()
+        submission_id = params.get("id", "")
+        tag_id = params.get("tag", "")
+        if submission_id:
+            if not submission_id.isdecimal():
+                raise ValidationError({"id": "Enter a numeric submission ID."})
+            submissions = submissions.filter(pk=submission_id)
+        if tag_id:
+            if not tag_id.isdecimal():
+                raise ValidationError({"tag": "Enter a numeric tag ID."})
+            submissions = submissions.filter(tags__id=tag_id)
+
+        keyword = params.get("query", "").strip()[:200]
+        matched_ids = []
+        matching_types = Counter()
+        type_ids = []
+        if keyword:
+            words = query_words(keyword)
+            work_rows = Work.objects.filter(submission__in=submissions).values_list(
+                "submission_id", "submission__artist__artist_name", "submission__artist_name",
+                "title", "description", "submission_type",
+            ).iterator(chunk_size=200)
+            legacy_rows = submissions.filter(works__isnull=True).values_list(
+                "id", "artist__artist_name", "artist_name", "title", "description", "submission_type",
+            ).iterator(chunk_size=200)
+            for row_id, artist_name, fallback_name, title, description, raw_type in chain(work_rows, legacy_rows):
+                if not work_matches(artist_name or fallback_name, title, description, words):
+                    continue
+                matched_ids.append(row_id)
+                work_type = work_category(raw_type)
+                matching_types[work_type] += 1
+                if work_type == selected_type:
+                    type_ids.append(row_id)
+            submissions = submissions.filter(pk__in=matched_ids)
+        else:
+            for item in Work.objects.filter(submission__in=submissions).values("submission_type").annotate(total=Count("id")):
+                matching_types[work_category(item["submission_type"])] += item["total"]
+            for item in submissions.filter(works__isnull=True).values("submission_type").annotate(total=Count("id")):
+                matching_types[work_category(item["submission_type"])] += item["total"]
+
+        base_count = submissions.count()
+        result_set = submissions
+        if selected_type:
+            if keyword:
+                result_set = result_set.filter(pk__in=type_ids)
+            elif selected_type == "uncategorized":
+                uncategorized_work_ids = Work.objects.filter(submission__in=submissions).exclude(
+                    submission_type__in=KNOWN_TYPES
+                ).values_list("submission_id", flat=True)
+                legacy_ids = submissions.filter(works__isnull=True).exclude(
+                    submission_type__in=KNOWN_TYPES
+                ).values_list("id", flat=True)
+                result_set = result_set.filter(Q(pk__in=uncategorized_work_ids) | Q(pk__in=legacy_ids))
+            else:
+                result_set = result_set.filter(
+                    Q(works__submission_type=selected_type)
+                    | Q(works__isnull=True, submission_type=selected_type)
+                ).distinct()
+
+        count = result_set.count()
+        order = {
+            "date_asc": ("created_at", "id"),
+            "date_desc": ("-created_at", "id"),
+            "artist_asc": ("artist_order", "id"),
+            "artist_desc": ("-artist_order", "id"),
+        }[sort]
+        page_ids = list(
+            result_set.annotate(artist_order=Coalesce(Lower("artist__artist_name"), Lower("artist_name")))
+            .order_by(*order).values_list("id", flat=True)[(page - 1) * 20:page * 20]
+        )
+        records = {item.pk: item for item in self.get_queryset().filter(pk__in=page_ids)}
+        available_types = {work_category(value) for value in Work.objects.values_list("submission_type", flat=True).distinct()}
+        available_types.update(work_category(value) for value in Submission.objects.filter(works__isnull=True).values_list("submission_type", flat=True))
+        type_order = [choice for choice, _ in Submission.SubmissionType.choices] + ["uncategorized"]
+        summary = [
+            {"type": work_type, "label": work_type.replace("_", " "), "count": matching_types[work_type]}
+            for work_type in type_order if work_type in available_types
+        ]
+        tags = TagSerializer(Tag.objects.filter(submissions__isnull=False).distinct(), many=True).data
+        return Response({
+            "results": self.get_serializer([records[pk] for pk in page_ids], many=True).data,
+            "count": count,
+            "base_count": base_count,
+            "total": total,
+            "summary": summary,
+            "tags": tags,
+        })
+
     @action(detail=True, methods=["post"], url_path="tags")
     def add_tag(self, request, pk=None):
         submission = self.get_object()
@@ -125,38 +238,47 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        with transaction.atomic():
-            submission = _create_submission(
-                serializer.validated_data, self.submission_repository
-            )
-            work = Work.objects.create(
-                submission=submission, position=1,
-                **{field: serializer.validated_data[field] for field in PIECE_FIELDS if field in serializer.validated_data and field not in {"text_links", "visual_links", "video_links", "other_links", "named_links"}},
-            )
-
-            for text_file in request.FILES.getlist("text_files"):
-                self.document_repository.create_text_document(
-                    submission=submission,
-                    uploaded_file=text_file,
-                    work=work,
+        stored_documents = []
+        try:
+            with transaction.atomic():
+                submission = _create_submission(
+                    serializer.validated_data, self.submission_repository
+                )
+                work = Work.objects.create(
+                    submission=submission, position=1,
+                    **{field: serializer.validated_data[field] for field in PIECE_FIELDS if field in serializer.validated_data and field not in {"text_links", "visual_links", "video_links", "other_links", "named_links"}},
                 )
 
-            for image in request.FILES.getlist("visuals"):
-                self.document_repository.create_visual_document(
-                    submission=submission,
-                    uploaded_file=image,
-                    work=work,
-                )
+                for text_file in request.FILES.getlist("text_files"):
+                    stored_documents.append(self.document_repository.create_text_document(
+                        submission=submission,
+                        uploaded_file=text_file,
+                        work=work,
+                    ))
 
-            for link_type, urls in serializer.validated_links.items():
+                for image in request.FILES.getlist("visuals"):
+                    stored_documents.append(self.document_repository.create_visual_document(
+                        submission=submission,
+                        uploaded_file=image,
+                        work=work,
+                    ))
+
+                for link_type, urls in serializer.validated_links.items():
+                    SubmissionLink.objects.bulk_create([
+                        SubmissionLink(submission=submission, work=work, link_type=link_type, url=url)
+                        for url in urls
+                    ])
                 SubmissionLink.objects.bulk_create([
-                    SubmissionLink(submission=submission, work=work, link_type=link_type, url=url)
-                    for url in urls
+                    SubmissionLink(submission=submission, work=work, link_type=SubmissionLink.LinkType.OTHER, **link)
+                    for link in serializer.validated_named_links
                 ])
-            SubmissionLink.objects.bulk_create([
-                SubmissionLink(submission=submission, work=work, link_type=SubmissionLink.LinkType.OTHER, **link)
-                for link in serializer.validated_named_links
-            ])
+        except Exception:
+            for document in stored_documents:
+                try:
+                    document.file.delete(save=False)
+                except Exception:
+                    logger.exception("Could not remove a file after submission creation failed.")
+            raise
         try:
             send_submission_receipt(submission)
         except Exception:
@@ -279,6 +401,15 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             SubmissionCommentSerializer(comment).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["delete"], url_path=r"comments/(?P<comment_id>[0-9]+)")
+    def remove_comment(self, request, pk=None, comment_id=None):
+        submission = self.get_object()
+        comment = get_object_or_404(submission.staff_comments, pk=comment_id)
+        if comment.author_id != request.user.pk:
+            raise PermissionDenied("You can remove only your own comments.")
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get", "post", "delete"])
     def votes(self, request, pk=None):

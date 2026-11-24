@@ -14,6 +14,7 @@ import {
   getSubmissionPreviewUrl,
   getTags,
   getVideoStreamAccess,
+  removeSubmissionComment,
   removeSubmissionTag,
 } from "../services/submissionService";
 import "../styles/dashboard.css";
@@ -195,11 +196,14 @@ export default function SubmissionDetailsPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [submission, setSubmission] = useState(null);
   const [comments, setComments] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [voteState, setVoteState] = useState(null);
   const [voteError, setVoteError] = useState("");
   const [savingVote, setSavingVote] = useState(false);
   const [error, setError] = useState("");
   const [commentError, setCommentError] = useState("");
+  const [commentRemoveError, setCommentRemoveError] = useState("");
+  const [removingCommentId, setRemovingCommentId] = useState(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [availableTags, setAvailableTags] = useState([]);
@@ -217,6 +221,7 @@ export default function SubmissionDetailsPage() {
           navigate("/login", { replace: true });
           return;
         }
+        setCurrentUserId(session.user.id);
         const [details, notes, voteData, tags] = await Promise.all([
           getSubmissionById(id),
           getSubmissionComments(id),
@@ -256,6 +261,20 @@ export default function SubmissionDetailsPage() {
       setCommentError(err?.response?.data?.body?.[0] || "Could not save this comment.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onCommentRemove(commentId) {
+    if (removingCommentId !== null) return;
+    setRemovingCommentId(commentId);
+    setCommentRemoveError("");
+    try {
+      await removeSubmissionComment(id, commentId);
+      setComments((current) => current.filter((comment) => comment.id !== commentId));
+    } catch (err) {
+      setCommentRemoveError(err?.response?.data?.detail || "Could not remove this comment.");
+    } finally {
+      setRemovingCommentId(null);
     }
   }
 
@@ -434,7 +453,7 @@ export default function SubmissionDetailsPage() {
                 {voteError && <p role="alert" className="details-error">{voteError}</p>}
                 <div className="details-voter-list">
                   <h3>Votes by staff</h3>
-                  {!voteState?.votes?.length && <p>No votes yet.</p>}
+                  {!voteState?.votes?.length && <p className="details-empty">No votes yet.</p>}
                   {voteState?.votes?.map((vote) => (
                     <article key={vote.id} className="details-voter">
                       <div><strong>{vote.voter_name}</strong><span>{vote.choice === "see_comment" ? "See comment" : vote.choice === "yes" ? "Yes" : "No"}</span></div>
@@ -453,13 +472,26 @@ export default function SubmissionDetailsPage() {
                   <button type="submit" className="smallBtn" disabled={saving || !draft.trim()}>{saving ? "saving..." : "post comment"}</button>
                 </form>
                 <div className="details-comment-list">
-                  {comments.length === 0 && <p>No comments yet.</p>}
+                  {comments.length === 0 && <p className="details-empty">No comments yet.</p>}
                   {comments.map((comment) => (
                     <article key={comment.id} className="details-comment">
-                      <div><strong>{comment.author_name}</strong><time dateTime={comment.created_at}>{formatDate(comment.created_at)}</time></div>
+                      <div className="details-comment-header">
+                        <strong>{comment.author_name}</strong>
+                        <time dateTime={comment.created_at}>{formatDate(comment.created_at)}</time>
+                        {comment.author_id === currentUserId && (
+                          <button
+                            type="button"
+                            className="smallBtn details-comment-remove"
+                            onClick={() => onCommentRemove(comment.id)}
+                            disabled={removingCommentId !== null}
+                            aria-label={`Remove your comment from ${formatDate(comment.created_at)}`}
+                          >{removingCommentId === comment.id ? "removing..." : "remove"}</button>
+                        )}
+                      </div>
                       <p>{comment.body}</p>
                     </article>
                   ))}
+                  {commentRemoveError && <p role="alert" className="details-error">{commentRemoveError}</p>}
                 </div>
               </section>
             </>
