@@ -27,7 +27,7 @@ credentials in `.env.example`.
 | `AWS_STORAGE_BUCKET_NAME`, `AWS_S3_ENDPOINT_URL`, `AWS_S3_REGION_NAME`, `AWS_S3_ADDRESSING_STYLE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_QUERYSTRING_AUTH` | Needed only when `RAGEZINE_STORAGE_BACKEND=s3`. Use a private bucket and least-privilege credentials. The regional endpoint and virtual addressing make signed video URLs match the site's media origin. |
 | `DJANGO_EMAIL_BACKEND` | SMTP backend for real receipt emails. |
 | `DJANGO_EMAIL_HOST`, `DJANGO_EMAIL_PORT`, `DJANGO_EMAIL_HOST_USER`, `DJANGO_EMAIL_HOST_PASSWORD`, `DJANGO_EMAIL_USE_TLS`, `DJANGO_EMAIL_USE_SSL` | Mail-provider connection and credentials. Use the encryption mode and port specified by the provider. |
-| `SUBMISSION_EMAIL_FROM` | Verified sender address for receipt emails. |
+| `SUBMISSION_EMAIL_FROM` | Verified sender address for receipt emails. The deployment copies this from the GitHub Actions secret. |
 | `SUBMISSION_EMAIL_SUBJECT`, `SUBMISSION_EMAIL_BODY` | Applicant receipt content. |
 | `SUBMISSION_NOTIFICATION_TO` | Optional comma-separated staff notification addresses. |
 
