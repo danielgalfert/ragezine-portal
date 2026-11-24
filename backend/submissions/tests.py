@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
-from submissions.models import Submission, SubmissionDocument, SubmissionLink, SubmissionVote, Tag
+from submissions.models import Submission, SubmissionComment, SubmissionDocument, SubmissionLink, SubmissionVote, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
@@ -544,6 +544,59 @@ class SubmissionDeletionTests(TestCase):
         self.assertTrue(storage.exists(name))
 
 
+class SubmissionCommentRemovalTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.author = get_user_model().objects.create_user(
+            username="comment-author", password="S3cretPass123", is_staff=True
+        )
+        self.other_editor = get_user_model().objects.create_user(
+            username="other-editor", password="S3cretPass123", is_staff=True
+        )
+        self.submission = Submission.objects.create(
+            title="Review Piece",
+            submission_type=Submission.SubmissionType.POETRY,
+            artist_name="Artist",
+            pronouns="they/them",
+            short_bio="Bio",
+            email="artist@example.com",
+            country_origin="DK",
+            countries_residence=["DK"],
+        )
+
+    def test_author_can_remove_own_comment(self):
+        self.client.force_authenticate(self.author)
+        created = self.client.post(
+            f"/api/submissions/{self.submission.pk}/comments/",
+            {"body": "My review note"},
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data["author_id"], self.author.pk)
+
+        removed = self.client.delete(
+            f"/api/submissions/{self.submission.pk}/comments/{created.data['id']}/"
+        )
+
+        self.assertEqual(removed.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(SubmissionComment.objects.filter(pk=created.data["id"]).exists())
+
+    def test_other_editor_cannot_remove_comment(self):
+        comment = SubmissionComment.objects.create(
+            submission=self.submission,
+            author=self.author,
+            author_name=self.author.get_username(),
+            body="My review note",
+        )
+        self.client.force_authenticate(self.other_editor)
+
+        removed = self.client.delete(
+            f"/api/submissions/{self.submission.pk}/comments/{comment.pk}/"
+        )
+
+        self.assertEqual(removed.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(SubmissionComment.objects.filter(pk=comment.pk).exists())
+
+
 class SubmissionDownloadsTests(TestCase):
     def setUp(self):
         media_dir = TemporaryDirectory()
@@ -800,9 +853,9 @@ class SubmissionDownloadsTests(TestCase):
 class SubmissionEmailTests(TestCase):
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        SUBMISSION_EMAIL_FROM="editor@ragezine.test",
+        SUBMISSION_EMAIL_FROM="submissions@ragezine.com",
         SUBMISSION_EMAIL_SUBJECT="Thank you for submitting to Rage Zine",
-        SUBMISSION_EMAIL_BODY="Thank you for submitting to Rage Zine.\n\nWe will review your work shortly.",
+        SUBMISSION_EMAIL_BODY="Thank you for submitting to Rage Zine.",
     )
     def test_send_submission_receipt_only_to_artist_without_attachments(self):
         submission = Submission.objects.create(
@@ -844,10 +897,10 @@ class SubmissionEmailTests(TestCase):
         self.assertEqual(mail.outbox[0].subject, settings.SUBMISSION_EMAIL_SUBJECT)
         self.assertIn("Thank you for submitting to Rage Zine.", mail.outbox[0].body)
         self.assertIn("Hi Artist Mail,", mail.outbox[0].body)
-        self.assertIn('We received "Mail Piece"', mail.outbox[0].body)
+        self.assertIn("We received your submission.", mail.outbox[0].body)
         self.assertIn("Submissions are being reviewed", mail.outbox[0].body)
         self.assertIn("contact you at this email address to let you know the outcome", mail.outbox[0].body)
-        self.assertIn(f"Submission reference: #{submission.pk}", mail.outbox[0].body)
+        self.assertIn(f"Submission ID: {submission.pk}", mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].to, ["artist.mail@example.com"])
         self.assertNotIn("Detailed description", mail.outbox[0].body)
         self.assertEqual(mail.outbox[0].attachments, [])
@@ -856,16 +909,19 @@ class SubmissionEmailTests(TestCase):
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         html, content_type = mail.outbox[0].alternatives[0]
         self.assertEqual(content_type, "text/html")
-        self.assertIn("Thank you for sharing your work.", html)
+        self.assertIn("Thank you for your submission.", html)
+        self.assertIn(f"Submission ID: {submission.pk}", html)
         self.assertIn("Submissions are being reviewed", html)
         self.assertIn("contact you at this email address to let you know the outcome", html)
         self.assertIn("Artist Mail", html)
+        self.assertNotIn("Mail Piece", html)
+        self.assertNotIn("Mail Piece", mail.outbox[0].body)
         self.assertNotIn("mail-piece.pdf", html)
         self.assertNotIn("/downloads/", html)
 
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-        SUBMISSION_EMAIL_FROM="editor@ragezine.test",
+        SUBMISSION_EMAIL_FROM="submissions@ragezine.com",
         SUBMISSION_EMAIL_BODY="Thanks <script>alert(1)</script>",
     )
     def test_receipt_html_escapes_submitted_text(self):
@@ -881,5 +937,5 @@ class SubmissionEmailTests(TestCase):
         html = mail.outbox[0].alternatives[0][0]
         self.assertNotIn("<script>", html)
         self.assertNotIn("<b>Artist</b>", html)
-        self.assertIn("&lt;script&gt;Piece&lt;/script&gt;", html)
+        self.assertNotIn("Piece", html)
         self.assertIn("&lt;b&gt;Artist&lt;/b&gt;", html)
