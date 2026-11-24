@@ -1,5 +1,11 @@
 import { titleMatchesQuery } from "./titleSearch.js";
 
+const KNOWN_TYPES = new Set(["poetry", "visual_art", "short_form_writing", "long_form_writing", "other"]);
+
+export function workCategory(work) {
+  return KNOWN_TYPES.has(work.submission_type) ? work.submission_type : "uncategorized";
+}
+
 function fold(value) {
   return String(value ?? "")
     .normalize("NFD")
@@ -12,7 +18,7 @@ export function matchingWorks(submission, query = "", type = "") {
   const words = fold(query).trim().split(/\s+/).filter(Boolean);
   const works = submission.works?.length ? submission.works : [submission];
   return works.filter((work) => {
-    if (type && (work.submission_type || "uncategorized") !== type) return false;
+    if (type && workCategory(work) !== type) return false;
     const haystack = fold(`${artistName} ${work.title || ""} ${work.description || ""}`);
     return words.every((word) => haystack.includes(word) || titleMatchesQuery(work.title, word));
   });

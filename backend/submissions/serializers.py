@@ -15,17 +15,6 @@ from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
 
-VALID_LANGUAGES = {
-    "English",
-    "Spanish",
-    "Danish",
-    "French",
-    "German",
-    "Italian",
-    "Portuguese",
-    "Other",
-}
-
 VALID_SUBMISSION_TYPES = {choice for choice, _ in Submission.SubmissionType.choices}
 LINK_URL_VALIDATOR = URLValidator(schemes=["https"])
 
@@ -161,11 +150,12 @@ class WorkSerializer(serializers.ModelSerializer):
 
 class SubmissionCommentSerializer(serializers.ModelSerializer):
     body = serializers.CharField(max_length=4000, trim_whitespace=True)
+    author_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = SubmissionComment
-        fields = ["id", "body", "author_name", "created_at"]
-        read_only_fields = ["id", "author_name", "created_at"]
+        fields = ["id", "body", "author_id", "author_name", "created_at"]
+        read_only_fields = ["id", "author_id", "author_name", "created_at"]
 
     def validate_body(self, value):
         value = sanitize_multiline(value)
@@ -424,11 +414,9 @@ class SubmissionSerializer(serializers.ModelSerializer):
         return sanitized
 
     def validate_language(self, value):
-        value = sanitize_single_line(value).title()
-        if value not in VALID_LANGUAGES:
-            raise serializers.ValidationError(
-                "Language must be one of the allowed options."
-            )
+        value = sanitize_single_line(value)
+        if not value:
+            raise serializers.ValidationError("Enter a language.")
         return value
 
     def validate(self, attrs):
