@@ -350,6 +350,11 @@
   margin-bottom: 4px;
 }
 
+.details-card .details-empty {
+  font-size: .9rem;
+  line-height: 1.4;
+}
+
 .details-voter {
   padding: 14px 0;
   border-top: 1px solid rgba(5, 3, 8, .15);
@@ -414,7 +419,13 @@
 .details-comment div {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px 16px;
+}
+
+.details-comment-remove {
+  margin-left: auto;
+  font-size: .85rem;
 }
 
 .details-comment time {
@@ -422,8 +433,10 @@
   color: #65466b;
 }
 
-.details-comment p {
+.details-card .details-comment p {
   margin-top: 8px;
+  font-size: .95rem;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

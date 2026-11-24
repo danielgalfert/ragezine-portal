@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 from submissions.api.downloads import _build_complete_download_zip
 from submissions.api.email import send_submission_receipt
-from submissions.models import Submission, SubmissionDocument, SubmissionLink, SubmissionVote, Tag
+from submissions.models import Submission, SubmissionComment, SubmissionDocument, SubmissionLink, SubmissionVote, Tag
 from submissions.repositories import SubmissionDocumentRepository, SubmissionRepository
 
 
@@ -542,6 +542,59 @@ class SubmissionDeletionTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertTrue(storage.exists(name))
+
+
+class SubmissionCommentRemovalTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.author = get_user_model().objects.create_user(
+            username="comment-author", password="S3cretPass123", is_staff=True
+        )
+        self.other_editor = get_user_model().objects.create_user(
+            username="other-editor", password="S3cretPass123", is_staff=True
+        )
+        self.submission = Submission.objects.create(
+            title="Review Piece",
+            submission_type=Submission.SubmissionType.POETRY,
+            artist_name="Artist",
+            pronouns="they/them",
+            short_bio="Bio",
+            email="artist@example.com",
+            country_origin="DK",
+            countries_residence=["DK"],
+        )
+
+    def test_author_can_remove_own_comment(self):
+        self.client.force_authenticate(self.author)
+        created = self.client.post(
+            f"/api/submissions/{self.submission.pk}/comments/",
+            {"body": "My review note"},
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(created.data["author_id"], self.author.pk)
+
+        removed = self.client.delete(
+            f"/api/submissions/{self.submission.pk}/comments/{created.data['id']}/"
+        )
+
+        self.assertEqual(removed.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(SubmissionComment.objects.filter(pk=created.data["id"]).exists())
+
+    def test_other_editor_cannot_remove_comment(self):
+        comment = SubmissionComment.objects.create(
+            submission=self.submission,
+            author=self.author,
+            author_name=self.author.get_username(),
+            body="My review note",
+        )
+        self.client.force_authenticate(self.other_editor)
+
+        removed = self.client.delete(
+            f"/api/submissions/{self.submission.pk}/comments/{comment.pk}/"
+        )
+
+        self.assertEqual(removed.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(SubmissionComment.objects.filter(pk=comment.pk).exists())
 
 
 class SubmissionDownloadsTests(TestCase):

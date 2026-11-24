@@ -29,6 +29,7 @@ export default function DashboardPage() {
     can_export_all_submissions: false,
   });
   const [downloadingExcel, setDownloadingExcel] = useState(false);
+  const [exportError, setExportError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,11 +66,14 @@ export default function DashboardPage() {
   }
 
   async function onDownloadExcel() {
+    setExportError("");
     setDownloadingExcel(true);
 
     try {
       const { blob, filename } = await downloadExcelReview();
       triggerBrowserDownload(blob, filename);
+    } catch {
+      setExportError("Could not download the Excel file. Try again.");
     } finally {
       setDownloadingExcel(false);
     }
@@ -128,6 +132,7 @@ export default function DashboardPage() {
           </div>}
         </nav>
 
+        {exportError && <p className="dashboard-export-error" role="alert">{exportError}</p>}
         <DashboardSubmissionsList canDeleteSubmissions={staffPermissions.can_delete_submissions} />
       </div>
     </main>

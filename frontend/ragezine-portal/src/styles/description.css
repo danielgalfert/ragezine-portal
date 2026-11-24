@@ -47,6 +47,7 @@
 }
 
 .hero-copy {
+  --hero-wordmark-size: clamp(3rem, 8vw, 7.5rem);
   display: grid;
   justify-items: center;
   width: 100%;
@@ -57,7 +58,7 @@
   width: 100%;
   display: grid;
   justify-items: center;
-  font-size: clamp(3rem, 8vw, 7.5rem);
+  font-size: var(--hero-wordmark-size);
   line-height: 1;
   letter-spacing: -0.025em;
 }
@@ -85,8 +86,9 @@
 }
 
 .hero-letter-pair {
-  letter-spacing: 0.015em;
-  transform: scaleY(1.05);
+  font-family: "NewEdge666SemiBoldSlanted", sans-serif;
+  letter-spacing: 0;
+  margin-inline: 0.05em;
 }
 
 .hero-letter-regular {
@@ -103,8 +105,8 @@
 
 .hero-copy .hero-subtitle {
   margin-top: 8px;
-  font-family: "NewEdge666", sans-serif;
-  font-size: clamp(1.5rem, 4vw, 3.25rem);
+  font-family: "NewEdge666SemiBoldSlanted", sans-serif;
+  font-size: calc(var(--hero-wordmark-size) * 0.52);
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
@@ -185,8 +187,10 @@
 }
 
 .submit-intro h2 {
-  color: #fff;
-  text-shadow: 0 2px 12px rgba(9, 5, 18, 0.45);
+  font-family: "NewEdge666UltraBoldSlanted", sans-serif;
+  color: #000;
+  text-align: center;
+  text-shadow: none;
 }
 
 .submission-content {
@@ -271,8 +275,8 @@
     padding-bottom: 48px;
   }
 
-  .hero-title {
-    font-size: clamp(2.25rem, 10vw, 3.75rem);
+  .hero-copy {
+    --hero-wordmark-size: clamp(2.25rem, 10vw, 3.75rem);
   }
 
   .hero-description {

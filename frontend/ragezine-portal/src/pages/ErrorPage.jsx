@@ -7,10 +7,12 @@ import "../styles/error.css";
 const ERRORS = {
   404: {
     title: "Page not found",
+    tabTitle: "Page Not Found",
     message: "Check the address, or go back to the submission form.",
   },
   500: {
     title: "Something went wrong",
+    tabTitle: "Something Went Wrong",
     message: "Reload the page. If the problem continues, try again later.",
   },
 };
@@ -19,8 +21,8 @@ export default function ErrorPage({ status = 500 }) {
   const error = ERRORS[status] || ERRORS[500];
 
   useEffect(() => {
-    document.title = `${error.title} — RAGE Zine`;
-  }, [error.title]);
+    document.title = `${error.tabTitle} — RAGE Zine`;
+  }, [error.tabTitle]);
 
   return (
     <main className="portal-page error-page">
