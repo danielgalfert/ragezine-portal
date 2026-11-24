@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { downloadSubmissionArchive, downloadWorkArchive } from "../services/downloadService";
-import { deleteSubmission, getSubmissions } from "../services/submissionService";
-import { matchingWorks, searchSubmissionsByKeyword, sortSubmissions } from "../utils/submissionSearch";
+import { deleteSubmission, getDashboardSubmissions } from "../services/submissionService";
+import { matchingWorks, workCategory } from "../utils/submissionSearch";
 
 const PAGE_SIZE = 20;
 
@@ -78,12 +78,12 @@ function SubmissionGroup({ submission, works, onDelete, deletingId, canDeleteSub
           </button>}
         </div>
       </header>
-      <div className="dashboard-block-list" aria-label={`Pieces by ${artistName}`}>
+      <div className="dashboard-block-list" aria-label={`Submissions by ${artistName}`}>
         {works.map((work, index) => (
           <div className="dashboard-block-row" key={work.id || `legacy-${submission.id}-${index}`}>
             <strong className="dashboard-block-title">{work.title}</strong>
             {work.description && <p className="dashboard-block-description">{work.description}</p>}
-            <span className="dashboard-block-type">{(work.submission_type || "uncategorized").replaceAll("_", " ")}</span>
+            <span className="dashboard-block-type">{workCategory(work).replaceAll("_", " ")}</span>
             <button
               type="button"
               className="smallBtn dashboard-block-download"
@@ -101,27 +101,54 @@ function SubmissionGroup({ submission, works, onDelete, deletingId, canDeleteSub
 
 export default function DashboardSubmissionsList({ canDeleteSubmissions = false }) {
   const [submissions, setSubmissions] = useState([]);
+  const [count, setCount] = useState(0);
+  const [baseCount, setBaseCount] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [page, setPage] = useState(1);
   const [keywordQuery, setKeywordQuery] = useState("");
+  const [idQuery, setIdQuery] = useState("");
   const [sortCategory, setSortCategory] = useState("date");
   const [sortDirection, setSortDirection] = useState("desc");
   const [selectedTagId, setSelectedTagId] = useState("");
   const [selectedType, setSelectedType] = useState("");
+  const [settledQuery, setSettledQuery] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettledQuery(keywordQuery), 250);
+    return () => window.clearTimeout(timer);
+  }, [keywordQuery]);
 
   useEffect(() => {
     let active = true;
 
     async function loadSubmissions() {
+      setLoading(true);
+      setError("");
       try {
-        const data = await getSubmissions();
+        const data = await getDashboardSubmissions({
+          page,
+          query: settledQuery,
+          id: idQuery,
+          tag: selectedTagId,
+          type: selectedType,
+          sort: `${sortCategory}_${sortDirection}`,
+        });
         if (!active) {
           return;
         }
-        setSubmissions(Array.isArray(data) ? data : data.results || []);
+        setSubmissions(data.results);
+        setCount(data.count);
+        setBaseCount(data.base_count);
+        setTotal(data.total);
+        setSummary(data.summary);
+        setAvailableTags(data.tags);
       } catch (err) {
         if (!active) {
           return;
@@ -139,54 +166,9 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
     return () => {
       active = false;
     };
-  }, []);
+  }, [page, settledQuery, idQuery, selectedTagId, selectedType, sortCategory, sortDirection, refreshKey]);
 
-  const availableTags = useMemo(() => {
-    const tags = new Map();
-    submissions.forEach((submission) => {
-      submission.tags?.forEach((tag) => tags.set(tag.id, tag));
-    });
-    return [...tags.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [submissions]);
-
-  const searchMatches = useMemo(() => {
-    const tagged = selectedTagId
-      ? submissions.filter((submission) => submission.tags?.some((tag) => String(tag.id) === selectedTagId))
-      : submissions;
-    return searchSubmissionsByKeyword(tagged, keywordQuery);
-  }, [submissions, keywordQuery, selectedTagId]);
-
-  const filteredSubmissions = useMemo(
-    () => sortSubmissions(selectedType
-      ? searchMatches.filter((submission) => matchingWorks(submission, keywordQuery, selectedType).length > 0)
-      : searchMatches, `${sortCategory}_${sortDirection}`),
-    [searchMatches, selectedType, sortCategory, sortDirection, keywordQuery],
-  );
-
-  const summary = useMemo(() => {
-    const byType = searchMatches.reduce((acc, submission) => {
-      matchingWorks(submission, keywordQuery).forEach((work) => {
-        const key = work.submission_type || "uncategorized";
-        acc[key] = (acc[key] || 0) + 1;
-      });
-      return acc;
-    }, {});
-
-    const typeOrder = ["poetry", "visual_art", "short_form_writing", "long_form_writing", "other", "uncategorized"];
-    return [...new Set(submissions.flatMap((submission) => (submission.works?.length ? submission.works : [submission]).map((work) => work.submission_type || "uncategorized")))]
-      .sort((a, b) => typeOrder.indexOf(a) - typeOrder.indexOf(b))
-      .map((type) => ({
-        type,
-        label: type.replaceAll("_", " "),
-        count: byType[type] || 0,
-      }));
-  }, [submissions, searchMatches, keywordQuery]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / PAGE_SIZE));
-  const visibleSubmissions = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredSubmissions.slice(start, start + PAGE_SIZE);
-  }, [page, filteredSubmissions]);
+  const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
   useEffect(() => {
     if (page > totalPages) {
@@ -199,6 +181,11 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
     setPage(1);
   }
 
+  function handleIdQueryChange(event) {
+    setIdQuery(event.target.value.replace(/\D/g, ""));
+    setPage(1);
+  }
+
   async function handleSubmissionDelete(submission) {
     if (!window.confirm(`Delete submission #${submission.id} by ${submission.artist?.artist_name || submission.artist_name}? This also removes its uploaded files.`)) {
       return;
@@ -208,7 +195,7 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
     setDeletingId(submission.id);
     try {
       await deleteSubmission(submission.id);
-      setSubmissions((current) => current.filter((item) => item.id !== submission.id));
+      setRefreshKey((current) => current + 1);
     } catch (err) {
       setDeleteError(err?.response?.data?.detail || err?.message || "Failed to delete submission.");
     } finally {
@@ -274,13 +261,25 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
                 <option value="asc">{sortCategory === "date" ? "oldest first" : "A to Z"}</option>
               </select>
             </div>
+            <div className="dashboard-id-filter">
+              <label htmlFor="dashboard-id-search">search ID</label>
+              <input
+                id="dashboard-id-search"
+                type="search"
+                inputMode="numeric"
+                placeholder="ID"
+                value={idQuery}
+                onChange={handleIdQueryChange}
+                autoComplete="off"
+              />
+            </div>
           </div>
         </div>
         <div className="dashboard-header">
           <div className="dashboard-summary">
             <div className="dashboard-summary-card">
-              <span className="dashboard-summary-label">{keywordQuery.trim() || selectedTagId ? "results" : "total"}</span>
-              <strong>{searchMatches.length}</strong>
+              <span className="dashboard-summary-label">{keywordQuery.trim() || idQuery || selectedTagId ? "results" : "total"}</span>
+              <strong>{baseCount}</strong>
             </div>
             {summary.map((item) => (
               <button
@@ -318,24 +317,24 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
           </div>
         )}
 
-        {!loading && !error && submissions.length === 0 && (
+        {!loading && !error && total === 0 && (
           <div className="dashboard-panel">
             <p>No submissions yet.</p>
           </div>
         )}
 
-        {!loading && !error && submissions.length > 0 && filteredSubmissions.length === 0 && (
+        {!loading && !error && total > 0 && count === 0 && (
           <div className="dashboard-panel" role="status">
             <p>No submissions match these filters.</p>
           </div>
         )}
 
-        {!loading && !error && filteredSubmissions.length > 0 && (
+        {!loading && !error && count > 0 && (
           <>
             <div className="dashboard-toolbar">
               <p className="dashboard-range" role="status">
-                Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filteredSubmissions.length)} of {filteredSubmissions.length}
-                {(keywordQuery.trim() || selectedTagId || selectedType) && ` results (${submissions.length} total)`}
+                Showing {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, count)} of {count}
+                {(settledQuery.trim() || idQuery || selectedTagId || selectedType) && ` results (${total} total)`}
               </p>
               <div className="dashboard-pagination">
                 <button
@@ -361,11 +360,11 @@ export default function DashboardSubmissionsList({ canDeleteSubmissions = false 
             </div>
 
             <div className="dashboard-list">
-              {visibleSubmissions.map((submission) => (
+              {submissions.map((submission) => (
                 <SubmissionGroup
                   key={submission.id}
                   submission={submission}
-                  works={matchingWorks(submission, keywordQuery, selectedType)}
+                  works={matchingWorks(submission, settledQuery, selectedType)}
                   onDelete={handleSubmissionDelete}
                   deletingId={deletingId}
                   canDeleteSubmissions={canDeleteSubmissions}

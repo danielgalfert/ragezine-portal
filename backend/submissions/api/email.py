@@ -14,10 +14,10 @@ def _receipt_body(submission):
     return (
         f"Hi {submission.artist_name},\n\n"
         f"{_introduction()}\n\n"
-        f"We received \"{submission.title}\" and appreciate you sharing your work with us. "
+        "We received your submission. "
         "Submissions are being reviewed, and we'll contact you at this email address "
         "to let you know the outcome.\n\n"
-        f"Submission reference: #{submission.pk}\n\n"
+        f"Submission ID: {submission.pk}\n\n"
         "With thanks,\nThe Rage Zine team\n\n"
         "Please keep this email as confirmation of your submission.\n"
     )
@@ -25,7 +25,6 @@ def _receipt_body(submission):
 
 def _receipt_html(submission):
     artist_name = escape(submission.artist_name)
-    title = escape(submission.title)
     reference = escape(str(submission.pk))
     introduction = escape(_introduction()).replace("\n", "<br>")
 
@@ -41,13 +40,12 @@ def _receipt_html(submission):
         </td></tr>
         <tr><td style="padding:36px;">
           <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Hi {artist_name},</p>
-          <h1 style="margin:0 0 20px;color:#442275;font-size:30px;line-height:1.2;">Thank you for sharing your work.</h1>
+          <h1 style="margin:0 0 20px;color:#442275;font-size:30px;line-height:1.2;">Thank you for your submission.</h1>
           <p style="margin:0 0 16px;font-size:16px;line-height:1.7;">{introduction}</p>
-          <p style="margin:0 0 26px;font-size:16px;line-height:1.7;">We received <strong>&ldquo;{title}&rdquo;</strong> and appreciate you sharing your work with us. Submissions are being reviewed, and we'll contact you at this email address to let you know the outcome.</p>
+          <p style="margin:0 0 26px;font-size:16px;line-height:1.7;">We received your submission. Submissions are being reviewed, and we'll contact you at this email address to let you know the outcome.</p>
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f4eafa;border-left:4px solid #7e49d9;">
             <tr><td style="padding:16px 20px;">
-              <span style="display:block;color:#644681;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Submission reference</span>
-              <span style="display:block;margin-top:5px;color:#21172f;font-size:19px;font-weight:700;">#{reference}</span>
+              <span style="display:block;color:#21172f;font-size:19px;font-weight:700;">Submission ID: {reference}</span>
             </td></tr>
           </table>
           <p style="margin:28px 0 0;font-size:16px;line-height:1.6;">With thanks,<br><strong>The Rage Zine team</strong></p>
@@ -80,40 +78,4 @@ def send_submission_receipt(submission):
 def send_batch_receipt(submission, works):
     if not works:
         return 0
-    from_email = settings.SUBMISSION_EMAIL_FROM.strip()
-    if not submission.email or not from_email:
-        return 0
-
-    items = "\n".join(f'- "{work.title}" (work #{work.pk})' for work in works)
-    piece_word = "piece" if len(works) == 1 else "pieces"
-    received_line = f"We received your submission #{submission.pk} with {len(works)} {piece_word}:"
-    body = (
-        f"Hi {submission.artist_name},\n\n"
-        f"{_introduction()}\n\n"
-        f"{received_line}\n{items}\n\n"
-        "We will contact you at this email address after review.\n\n"
-        "With thanks,\nThe Rage Zine team\n\n"
-        "Please keep this email as confirmation of your submissions.\n"
-    )
-    html_items = "".join(
-        f"<li>{escape(work.title)} (work #{work.pk})</li>"
-        for work in works
-    )
-    html = (
-        '<!doctype html><html lang="en"><meta charset="utf-8">'
-        '<body style="font-family:Arial,Helvetica,sans-serif;color:#21172f">'
-        f"<p>Hi {escape(submission.artist_name)},</p>"
-        f"<p>{escape(_introduction()).replace(chr(10), '<br>')}</p>"
-        f"<p>{escape(received_line)}</p><ul>{html_items}</ul>"
-        "<p>We will contact you at this email address after review.</p>"
-        "<p>With thanks,<br>The Rage Zine team</p>"
-        "</body></html>"
-    )
-    message = EmailMultiAlternatives(
-        subject=settings.SUBMISSION_EMAIL_SUBJECT.strip(),
-        body=body,
-        from_email=from_email,
-        to=[submission.email],
-    )
-    message.attach_alternative(html, "text/html")
-    return message.send(fail_silently=False)
+    return send_submission_receipt(submission)

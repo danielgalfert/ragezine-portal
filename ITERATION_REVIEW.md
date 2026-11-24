@@ -26,9 +26,9 @@ This review describes the branch changes before merge. Production continues to r
 
 - Added Artist and Work entities. A submission has one artist and one or more ordered works. Each work owns its files and links and has its own timestamp. Tags, votes, and comments belong to the submission.
 - Added a migration that copies each existing submission into an artist and one work. It retains the old submission columns for compatibility and rollback during review. Old grouped records remain separate submissions to avoid merging votes or comments without an agreed rule.
-- Added a batch submission endpoint. It validates all pieces before it saves any of them, then creates one submission with several works and sends one receipt email with the new titles.
+- Added a batch submission endpoint. It validates all entries before it saves any of them, then creates one submission with several entries and sends one receipt email with the submission ID.
 - Each public form request creates a new artist and submission record, even when the name and email match an earlier request. Works in one form still share one submission.
-- A later request cannot change an earlier artist profile, votes, tags, or comments. Its response and receipt cover its own works and new reference.
+- A later request cannot change an earlier artist profile, votes, tags, or comments. Its response covers its own entries, and its receipt shows the new submission ID.
 - Artist email is normalized for new submissions. The public form does not treat a name and email as proof of ownership of an earlier record.
 - Kept the single submission endpoint for older clients.
 - Added fields for the new questions and notes, plus named links and PNG upload validation. Migration 0017 adds a link name field while keeping old links valid.
@@ -39,6 +39,7 @@ This review describes the branch changes before merge. Production continues to r
 - Added a `Submission Managers` role. All current, new, and newly promoted staff receive it at first. Removing the role keeps review access but blocks deletion and complete ZIP or Excel export in the API and dashboard.
 
 - Added separate controls for sort category (submission date or artist name) and direction. The default list order is newest submission first.
+- Added a small ID search beside the direction control. Category cards remain in one horizontal row.
 - Changed list search to match artist names, piece titles, and full piece descriptions.
 - Made labels more prominent in the submission list and detail view.
 - The list groups piece rows under a submission's artist header. Each row shows its title, a short description preview, type, and a down arrow download button without a number or date. The header shows the submission date and labels origin and residence countries. Each button downloads a ZIP with only that piece's files and details. Staff can also download each file from the details page. The details page shows the artist name, then numbered pieces with each work's fields, files, links, and previews. Tags, votes, and comments follow the pieces.
@@ -48,7 +49,7 @@ This review describes the branch changes before merge. Production continues to r
 
 ## Checks
 
-- Backend: all 102 tests passed, including migration, separate submission, staff role, piece download, and complete ZIP tests.
+- Backend: all 106 tests passed, including migration, separate submission, staff role, entry download, and complete ZIP tests.
 - Database migration check: no missing migration changes.
 - Frontend: lint, build, and 10 utility tests passed. The production dependency audit found no vulnerabilities. A full audit reports a high-severity issue in the build-only `picomatch` package; see `docs/public-release-security.md`.
 - Backend dependency audit: no known vulnerabilities found.
