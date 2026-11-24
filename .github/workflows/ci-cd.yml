@@ -94,6 +94,7 @@ jobs:
       LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
       LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
       LIGHTSAIL_KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_KNOWN_HOSTS }}
+      SUBMISSION_EMAIL_FROM: ${{ secrets.SUBMISSION_EMAIL_FROM }}
     steps:
       - uses: actions/checkout@v4
       - name: Skip commits superseded on main
@@ -111,12 +112,16 @@ jobs:
         if: steps.latest.outputs.deploy == 'true'
         shell: bash
         run: |
-          for name in LIGHTSAIL_HOST LIGHTSAIL_USER LIGHTSAIL_SSH_KEY LIGHTSAIL_KNOWN_HOSTS; do
+          for name in LIGHTSAIL_HOST LIGHTSAIL_USER LIGHTSAIL_SSH_KEY LIGHTSAIL_KNOWN_HOSTS SUBMISSION_EMAIL_FROM; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing repository secret: $name"
               exit 1
             fi
           done
+          if [[ ! "$SUBMISSION_EMAIL_FROM" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::SUBMISSION_EMAIL_FROM must be an email address"
+            exit 1
+          fi
       - name: Package application source
         if: steps.latest.outputs.deploy == 'true'
         shell: bash
@@ -150,7 +155,7 @@ jobs:
             "$RUNNER_TEMP/ragezine-release.tar.gz" \
             "$target:ragezine-portal/incoming/$GITHUB_SHA.tar.gz"
           ssh -o StrictHostKeyChecking=yes "$target" \
-            "bash -s -- '$GITHUB_SHA'" < ops/deploy-lightsail.sh
+            "bash -s -- '$GITHUB_SHA' '$SUBMISSION_EMAIL_FROM'" < ops/deploy-lightsail.sh
       - name: Verify public and staff HTTPS
         if: steps.latest.outputs.deploy == 'true'
         shell: bash

@@ -2,8 +2,13 @@
 set -Eeuo pipefail
 
 release_sha="${1:-}"
+sender="${2:-}"
 if [[ ! "$release_sha" =~ ^[0-9a-f]{40}$ ]]; then
   echo "Expected a 40-character commit SHA" >&2
+  exit 1
+fi
+if [[ ! "$sender" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]]; then
+  echo "Expected a valid receipt sender address" >&2
   exit 1
 fi
 
@@ -43,7 +48,25 @@ ln -sfn "$env_file" "$release/.env"
 compose=(docker compose -p ragezine-portal --project-directory "$release" --env-file "$env_file" -f "$release/docker-compose.yml")
 "${compose[@]}" config --quiet
 "${compose[@]}" build --pull
+sender_changed=false
+if ! grep -Fxq "SUBMISSION_EMAIL_FROM=$sender" "$env_file"; then
+  temp_env="$(mktemp "$root/shared/.env.XXXXXX")"
+  chmod --reference="$env_file" "$temp_env"
+  awk -v sender="$sender" '
+    /^SUBMISSION_EMAIL_FROM=/ {
+      if (!seen++) print "SUBMISSION_EMAIL_FROM=" sender
+      next
+    }
+    { print }
+    END { if (!seen) print "SUBMISSION_EMAIL_FROM=" sender }
+  ' "$env_file" > "$temp_env"
+  mv "$temp_env" "$env_file"
+  sender_changed=true
+fi
 "${compose[@]}" up -d --remove-orphans --wait --wait-timeout 180
+if "$sender_changed"; then
+  "${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 180 backend
+fi
 
 port_binding="$("${compose[@]}" port nginx 80)"
 http_port="${port_binding##*:}"
