@@ -3,7 +3,7 @@ from django.conf import settings
 from uuid import uuid4
 
 
-VOLUME_NUMBER = 3
+VOLUME_NUMBER = 4
 
 
 def submission_document_upload_path(instance, filename):
