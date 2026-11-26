@@ -430,10 +430,10 @@ export default function SubmissionForm() {
               <CountrySelect value={artist.countries_residence} onChange={(countries) => updateArtist("countries_residence", countries)} isMulti />
             </FormField>
             <FormField id="artist-submitted-before" label="Have you submitted to RAGE Zine before? *">
-              <select className="portal-input" value={artist.submitted_before} onChange={(event) => updateArtist("submitted_before", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
+              <select className={`portal-input${artist.submitted_before ? "" : " portal-input-placeholder"}`} value={artist.submitted_before} onChange={(event) => updateArtist("submitted_before", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
             </FormField>
             <FormField id="artist-featured-before" label="Have you been featured in RAGE Zine before? *">
-              <select className="portal-input" value={artist.featured_before} onChange={(event) => updateArtist("featured_before", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
+              <select className={`portal-input${artist.featured_before ? "" : " portal-input-placeholder"}`} value={artist.featured_before} onChange={(event) => updateArtist("featured_before", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
             </FormField>
           </div>
           <div className="portal-grid portal-artist-identity">
@@ -478,11 +478,11 @@ export default function SubmissionForm() {
             <article className="portal-work-card" key={work.key}>
               <div className="portal-work-heading">
                 <h4 aria-label={`Submission ${index + 1}`}>#{index + 1}</h4>
-                {works.length > 1 && <button type="button" className="smallBtn portal-work-remove" aria-label={`Remove submission ${index + 1}`} onClick={() => setWorks((current) => current.filter((item) => item.key !== work.key))}>remove submission</button>}
+                {works.length > 1 && <button type="button" className="smallBtn portal-work-remove" aria-label={`Remove submission ${index + 1}`} onClick={() => setWorks((current) => current.filter((item) => item.key !== work.key))}><svg className="portal-work-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 10h12" /></svg>remove submission</button>}
               </div>
               <div className="portal-grid portal-work-core">
                 <FormField id={`work-${work.key}-type`} label="Submission type *">
-                  <select className="portal-input" value={work.submission_type} onChange={(event) => updateWork(work.key, "submission_type", event.target.value)}><option value="">Choose one...</option>{TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+                  <select className={`portal-input${work.submission_type ? "" : " portal-input-placeholder"}`} value={work.submission_type} onChange={(event) => updateWork(work.key, "submission_type", event.target.value)}><option value="">Choose one...</option>{TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
                 </FormField>
                 <FormField id={`work-${work.key}-title`} label="Title of your submission *">
                   <input className="portal-input" value={work.title} onChange={(event) => updateWork(work.key, "title", event.target.value)} onBlur={(event) => updateWork(work.key, "title", sanitizeSingleLine(event.target.value))} />
@@ -490,11 +490,11 @@ export default function SubmissionForm() {
                 <FormField label="Year (if relevant)">
                   <input className="portal-input" value={work.year} onChange={(event) => updateWork(work.key, "year", event.target.value)} onBlur={(event) => updateWork(work.key, "year", sanitizeSingleLine(event.target.value))} />
                 </FormField>
-                <FormField id={`work-${work.key}-language`} label="Languages of submission">
+                <FormField id={`work-${work.key}-language`} label="Language(s) of submission *">
                   <LanguageSelect value={work.language} onChange={(language) => updateWork(work.key, "language", language)} />
                 </FormField>
               </div>
-              <FormField id={`work-${work.key}-description`} label="Description of your submission, including materials if relevant">
+              <FormField id={`work-${work.key}-description`} label="Description of your submission, including materials (if relevant) *" help="Use 10 to 10,000 characters.">
                 <textarea className="portal-textarea" value={work.description} onChange={(event) => updateWork(work.key, "description", event.target.value)} onBlur={(event) => updateWork(work.key, "description", sanitizeMultiline(event.target.value))} />
               </FormField>
               <div className="portal-upload-grid">
@@ -521,7 +521,7 @@ export default function SubmissionForm() {
               <div className="portal-grid portal-work-footer">
                 <div className="portal-publication-group">
                   <FormField id={`work-${work.key}-published`} label="Has this submission been published elsewhere? *">
-                    <select className="portal-input" value={work.published_elsewhere} onChange={(event) => updateWork(work.key, "published_elsewhere", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
+                    <select className={`portal-input${work.published_elsewhere ? "" : " portal-input-placeholder"}`} value={work.published_elsewhere} onChange={(event) => updateWork(work.key, "published_elsewhere", event.target.value)}><option value="">Choose one...</option><option value="yes">Yes</option><option value="no">No</option></select>
                   </FormField>
                   {work.published_elsewhere === "yes" && <FormField id={`work-${work.key}-published-where`} label="If yes, where? *"><input className="portal-input" value={work.published_where} onChange={(event) => updateWork(work.key, "published_where", event.target.value)} onBlur={(event) => updateWork(work.key, "published_where", sanitizeSingleLine(event.target.value))} /></FormField>}
                   <p className="portal-help portal-restriction">RAGE Zine happily accepts submissions that have been published elsewhere, this is just for our information.</p>
@@ -532,7 +532,7 @@ export default function SubmissionForm() {
               </div>
             </article>
           ))}
-          {works.length < MAX_WORKS && <button type="button" className="smallBtn portal-work-add" onClick={() => setWorks((current) => [...current, newWork(nextWorkKey.current++)])}>add submission</button>}
+          {works.length < MAX_WORKS && <button type="button" className="smallBtn portal-work-add" onClick={() => setWorks((current) => [...current, newWork(nextWorkKey.current++)])}><svg className="portal-work-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 10h12M10 4v12" /></svg>add submission</button>}
         </section>
 
         <div className="portal-actions">

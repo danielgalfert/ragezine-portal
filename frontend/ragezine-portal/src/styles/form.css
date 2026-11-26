@@ -91,12 +91,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   min-height: 44px;
   padding: 0.55rem 0.8rem;
   font-family: "NewEdge666SemiBold", sans-serif;
   font-size: 0.85rem;
   line-height: 1;
   cursor: pointer;
+}
+
+.portal-work-icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
 }
 
 .portal-work-remove {
@@ -124,7 +135,7 @@
 
 .portal-work-heading h4 {
   font-family: "NewEdge666SemiBold", sans-serif;
-  font-size: 1.1rem;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
 }
 
 .portal-upload-grid {
@@ -221,7 +232,8 @@
 .portal-drop-title {
   color: var(--text-main);
   font-family: "NewEdge666SemiBold", sans-serif;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
+  text-transform: lowercase;
 }
 
 .portal-drop-or {
@@ -250,11 +262,14 @@
   font-size: 0.8rem;
 }
 
-.portal-restriction {
+.portal-form .portal-restriction {
   padding: 12px 14px;
   border-left: 3px solid var(--portal-purple);
   border-radius: 8px;
   background: rgba(206, 189, 239, 0.3);
+  font-family: "NewEdge666LightSlanted", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.4;
 }
 
 .portal-add-submission {
@@ -348,7 +363,7 @@
   border: 1px solid rgba(5, 3, 8, 0.18);
   background: rgba(255, 255, 255, 0.42);
   color: var(--text-main);
-  font-family: "NewEdge666Light", sans-serif;
+  font-family: "NewEdge666LightSlanted", sans-serif;
   font-size: 1rem;
 }
 
@@ -356,9 +371,14 @@
   min-height: var(--portal-control-height);
 }
 
+.portal-input-placeholder {
+  font-family: "NewEdge666Light", sans-serif;
+}
+
 .portal-input::placeholder,
 .portal-textarea::placeholder {
   color: rgba(5, 3, 8, 0.45);
+  font-family: "NewEdge666Light", sans-serif;
 }
 
 .portal-file-picker {
@@ -397,9 +417,18 @@
 }
 
 .portal-help {
-  font-family: "NewEdge666Light", sans-serif;
+  font-family: "NewEdge666LightSlanted", sans-serif;
   font-size: 0.95rem;
   color: var(--text-muted);
+}
+
+.portal-field > .portal-help {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.portal-form p {
+  font-family: "NewEdge666LightSlanted", sans-serif;
 }
 
 .hr {
@@ -705,12 +734,15 @@
 
 .form-select__single-value,
 .form-select__input-container,
+.form-select__multi-value__label,
 .form-select__option {
+  font-family: "NewEdge666LightSlanted", sans-serif !important;
   color: var(--text-main) !important;
 }
 
 .form-select__placeholder {
   color: rgba(5, 3, 8, 0.45) !important;
+  font-family: "NewEdge666Light", sans-serif !important;
 }
 
 .form-select__multi-value {
