@@ -1,6 +1,5 @@
 """Private inline previews with byte ranges for large PDF and video files."""
 
-from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
@@ -17,6 +16,7 @@ from rest_framework.response import Response
 from storages.backends.s3 import S3Storage
 
 from submissions.models import SubmissionDocument
+from submissions.filenames import submission_document_filename
 from submissions.preview import (
     MAX_DOCUMENT_PREVIEW_BYTES,
     MAX_TEXT_PREVIEW_BYTES,
@@ -154,7 +154,7 @@ def document_preview(request, document_id):
         return response
     if not stored_file.name or not stored_file.storage.exists(stored_file.name):
         raise Http404("Document file not found.")
-    filename = Path(document.original_filename or stored_file.name).name
+    filename = submission_document_filename(document)
     content_type = preview_content_type(document)
     suffix = document_suffix(document)
 

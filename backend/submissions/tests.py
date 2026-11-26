@@ -687,9 +687,9 @@ class SubmissionDownloadsTests(TestCase):
             root = f"submissions/Artist_One-{submission.pk}"
             self.assertIn(f"{root}/submission_details.txt", names)
             self.assertIn(f"{root}/piece-1/piece_details.txt", names)
-            self.assertIn(f"{root}/piece-1/legacy.txt", names)
-            self.assertIn(f"{root}/piece-1/poem.pdf", names)
-            self.assertIn(f"{root}/piece-1/image.tiff", names)
+            self.assertIn(f"{root}/piece-1/Artist-One_Archive-Piece.txt", names)
+            self.assertIn(f"{root}/piece-1/Artist-One_Archive-Piece.pdf", names)
+            self.assertIn(f"{root}/piece-1/Artist-One_Archive-Piece.tiff", names)
 
             details = archive.read(f"{root}/submission_details.txt").decode("utf-8")
             self.assertIn("1. Archive Piece (Poetry)", details)
@@ -697,9 +697,9 @@ class SubmissionDownloadsTests(TestCase):
             self.assertIn("Country of Origin: Denmark, Germany", details)
             piece_details = archive.read(f"{root}/piece-1/piece_details.txt").decode("utf-8")
             self.assertIn("Title: Archive Piece", piece_details)
-            self.assertIn("- legacy.txt", piece_details)
-            self.assertIn("- poem.pdf", piece_details)
-            self.assertIn("- image.tiff", piece_details)
+            self.assertIn("- Artist-One_Archive-Piece.txt", piece_details)
+            self.assertIn("- Artist-One_Archive-Piece.pdf", piece_details)
+            self.assertIn("- Artist-One_Archive-Piece.tiff", piece_details)
             self.assertIn("- Text: https://docs.google.com/document/d/first/edit", piece_details)
             workbook = load_workbook(BytesIO(archive.read(workbook_name)))
             self.assertEqual(workbook["Submissions"]["A2"].value, submission.pk)
@@ -729,7 +729,7 @@ class SubmissionDownloadsTests(TestCase):
         with _build_complete_download_zip() as complete_zip, ZipFile(complete_zip) as archive:
             for submission, content in zip(submissions, (b"first", b"second")):
                 self.assertEqual(
-                    archive.read(f"submissions/Artist_One-{submission.pk}/piece-1/poem.pdf"),
+                    archive.read(f"submissions/Artist_One-{submission.pk}/piece-1/Artist-One_Same-Name.pdf"),
                     content,
                 )
 

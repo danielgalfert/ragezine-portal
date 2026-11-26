@@ -66,6 +66,8 @@ class SubmissionDetailsTests(TestCase):
         self.assertEqual(detail.data["title"], self.submission.title)
         self.assertEqual(detail.data["country_origin_name"], "Denmark")
         self.assertEqual(detail.data["documents"][0]["preview_kind"], "pdf")
+        self.assertEqual(detail.data["documents"][0]["filename"], "Artist-Name_A-Test-Submission.pdf")
+        self.assertEqual(detail.data["documents"][0]["original_filename"], "poem.pdf")
         self.assertEqual(
             detail.data["documents"][0]["preview_url"],
             f"/api/previews/documents/{document.pk}/",
@@ -81,6 +83,20 @@ class SubmissionDetailsTests(TestCase):
         listed = self.client.get(comments_url)
         self.assertEqual(len(listed.data), 1)
         self.assertEqual(listed.data[0]["id"], created.data["id"])
+
+    def test_download_names_ignore_uploaded_names_and_keep_duplicates_distinct(self):
+        first = self.add_document("rough draft.pdf", b"%PDF-1.4\nfirst", "application/pdf")
+        second = self.add_document("another name.pdf", b"%PDF-1.4\nsecond", "application/pdf")
+
+        detail = self.client.get(f"/api/submissions/{self.submission.pk}/")
+        self.assertEqual(
+            [item["filename"] for item in detail.data["documents"]],
+            ["Artist-Name_A-Test-Submission.pdf", "Artist-Name_A-Test-Submission-2.pdf"],
+        )
+        download = self.client.get(f"/api/downloads/documents/{second.pk}/")
+        self.assertIn("Artist-Name_A-Test-Submission-2.pdf", download["Content-Disposition"])
+        self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.4\nsecond")
+        self.assertEqual(first.original_filename, "rough draft.pdf")
 
     def test_comments_and_previews_are_staff_only(self):
         document = self.add_document("poem.pdf", b"%PDF-1.4\npreview", "application/pdf")

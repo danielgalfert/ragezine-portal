@@ -17,6 +17,7 @@ from rest_framework.permissions import IsAdminUser
 
 from submissions.api.throttles import StaffExportThrottle
 from submissions.api.permissions import CanExportAllSubmissions
+from submissions.filenames import submission_document_filename
 from submissions.models import Submission, SubmissionDocument, SubmissionVote, Work
 from submissions.repositories import SubmissionRepository
 from submissions.serializers import country_name, origin_codes
@@ -165,7 +166,7 @@ def _format_piece_details(work, position):
         f"Anything Else: {work.anything_else or '-'}",
         "Files:",
     ]
-    lines.extend(f"- {document.original_filename or Path(document.file.name).name}" for document in work.documents.all())
+    lines.extend(f"- {submission_document_filename(document)}" for document in work.documents.all())
     lines.append("Links:")
     lines.extend(f"- {link.name or link.get_link_type_display()}: {link.url}" for link in work.links.all())
     return "\n".join(lines) + "\n"
@@ -379,7 +380,7 @@ def _build_excel_workbook(submissions=None):
                     _piece_id(work),
                     _safe_excel_text(work.title),
                     document.get_document_type_display(),
-                    _safe_excel_text(document.original_filename or Path(document.file.name).name),
+                    _safe_excel_text(submission_document_filename(document)),
                     document.size,
                 ])
             for link in work.links.all():
@@ -452,7 +453,7 @@ def _write_submission_to_archive(archive, submission, selected_work=None, separa
         piece_folder = f"piece-{document.work.position}" if document.work_id else "piece-1"
         used_names = used_names_by_piece[piece_folder]
         file_name = _safe_path_segment(
-            document.original_filename or Path(stored_file.name).name,
+            submission_document_filename(document),
             f"file-{len(used_names) + 1}",
         )
         stem = Path(file_name).stem
@@ -507,7 +508,7 @@ def document_download(request, document_id):
         raise Http404("Document file not found.")
 
     filename = _safe_path_segment(
-        document.original_filename or Path(stored_file.name).name,
+        submission_document_filename(document),
         f"document-{document_id}",
     )
     try:
