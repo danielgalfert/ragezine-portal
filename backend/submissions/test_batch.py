@@ -85,6 +85,7 @@ class SubmissionBatchTests(TestCase):
         self.assertEqual(submission.artist.message_to_editors, "Please consider both pieces.")
         self.assertEqual(first.anything_else, "A note about the piece.")
         self.assertEqual(first.documents.count(), 1)
+        self.assertEqual(response.data["submission"]["works"][0]["documents"][0]["filename"], "Artist-Name_First-Piece.pdf")
         self.assertEqual(second.links.count(), 1)
         self.assertEqual(second.submission_type, "other")
         self.assertEqual(response.data["batch_id"], str(submission.batch_id))
@@ -118,8 +119,8 @@ class SubmissionBatchTests(TestCase):
         self.assertEqual(download["Content-Type"], "application/zip")
         with ZipFile(BytesIO(b"".join(download.streaming_content))) as archive:
             names = archive.namelist()
-            self.assertTrue(any(name.endswith("/piece-1/first.pdf") for name in names))
-            self.assertFalse(any("second.pdf" in name for name in names))
+            self.assertTrue(any(name.endswith("/piece-1/Artist-Name_First-Piece.pdf") for name in names))
+            self.assertFalse(any("Second-Piece.pdf" in name for name in names))
             details = archive.read(next(name for name in names if name.endswith("submission_details.txt"))).decode("utf-8")
             self.assertIn(first.title, details)
             self.assertNotIn(second.title, details)
@@ -139,8 +140,8 @@ class SubmissionBatchTests(TestCase):
         self.assertEqual(download.status_code, 200)
         with ZipFile(BytesIO(b"".join(download.streaming_content))) as archive:
             root = f"submissions/Artist_Name-{submission.pk}"
-            self.assertEqual(archive.read(f"{root}/piece-1/first.pdf"), b"%PDF-1.4\nfirst")
-            self.assertEqual(archive.read(f"{root}/piece-2/second.pdf"), b"%PDF-1.4\nsecond")
+            self.assertEqual(archive.read(f"{root}/piece-1/Artist-Name_First-Piece.pdf"), b"%PDF-1.4\nfirst")
+            self.assertEqual(archive.read(f"{root}/piece-2/Artist-Name_Second-Piece.pdf"), b"%PDF-1.4\nsecond")
             first_details = archive.read(f"{root}/piece-1/piece_details.txt").decode("utf-8")
             second_details = archive.read(f"{root}/piece-2/piece_details.txt").decode("utf-8")
             self.assertIn("First Piece", first_details)
@@ -431,6 +432,6 @@ class SubmissionBatchTests(TestCase):
         self.assertEqual(overview_row["Type"], "Poetry, Other")
         self.assertEqual(overview_row["Yes Votes"], 1)
         self.assertEqual(workbook["Files"]["C2"].value, "First Piece")
-        self.assertEqual(workbook["Files"]["E2"].value, "poem.pdf")
+        self.assertEqual(workbook["Files"]["E2"].value, "Artist-Name_First-Piece.pdf")
         self.assertEqual(workbook["Links"]["C2"].value, "Second Piece")
         self.assertEqual(workbook["Comments"]["D2"].value, "Read both pieces")

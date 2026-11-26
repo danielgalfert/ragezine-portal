@@ -4,12 +4,13 @@ from django.db import models
 from django.urls import reverse
 
 from .models import Artist, Submission, SubmissionDocument, Work
+from .filenames import submission_document_filename
 
 
 class _ProtectedFileLink:
     def __init__(self, document):
         self.url = reverse("downloads-document", args=[document.pk])
-        self.name = document.original_filename or document.file.name.rsplit("/", 1)[-1]
+        self.name = submission_document_filename(document)
 
     def __str__(self):
         return self.name
@@ -69,10 +70,14 @@ class SubmissionDocumentAdmin(ProtectedDocumentFileAdminMixin, admin.ModelAdmin)
         "id",
         "submission",
         "document_type",
-        "original_filename",
+        "formatted_filename",
         "content_type",
         "size",
         "created_at",
     )
     list_filter = ("document_type", "content_type", "created_at")
     search_fields = ("original_filename", "file", "submission__artist_name", "submission__title")
+
+    @admin.display(description="Filename")
+    def formatted_filename(self, document):
+        return submission_document_filename(document)

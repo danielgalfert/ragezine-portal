@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from .models import Artist, Submission, SubmissionComment, SubmissionDocument, SubmissionLink, SubmissionVote, Tag, Work
+from submissions.filenames import submission_document_filename
 from submissions.preview import preview_kind as get_preview_kind
 from submissions.utils import sanitize_multiline, sanitize_single_line
 from submissions.utils.uploads import validate_upload
@@ -77,6 +78,7 @@ class CountryOriginField(serializers.ListField):
 
 
 class SubmissionDocumentSerializer(serializers.ModelSerializer):
+    filename = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
     preview_kind = serializers.SerializerMethodField()
     preview_url = serializers.SerializerMethodField()
@@ -85,6 +87,9 @@ class SubmissionDocumentSerializer(serializers.ModelSerializer):
         url = reverse("downloads-document", args=[obj.pk])
         request = self.context.get("request")
         return request.build_absolute_uri(url) if request else url
+
+    def get_filename(self, obj):
+        return submission_document_filename(obj)
 
     def get_preview_kind(self, obj):
         return get_preview_kind(obj)
@@ -98,6 +103,7 @@ class SubmissionDocumentSerializer(serializers.ModelSerializer):
         model = SubmissionDocument
         fields = [
             "id",
+            "filename",
             "document_type",
             "download_url",
             "preview_kind",

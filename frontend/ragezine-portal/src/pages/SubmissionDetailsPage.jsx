@@ -127,8 +127,8 @@ function Preview({ document }) {
   if (!document) return <p>Select a file to preview.</p>;
   if (document.preview_kind === "video") return <VideoPreview document={document} />;
   if (!url || !document.preview_kind) return <p>A preview is not available for this file. Download it to view it.</p>;
-  if (document.preview_kind === "pdf") return <iframe className="details-pdf" src={url} title={`Preview of ${document.original_filename}`} />;
-  if (document.preview_kind === "image") return <img className="details-image" src={url} alt={`Preview of ${document.original_filename}`} />;
+  if (document.preview_kind === "pdf") return <iframe className="details-pdf" src={url} title={`Preview of ${document.filename}`} />;
+  if (document.preview_kind === "image") return <img className="details-image" src={url} alt={`Preview of ${document.filename}`} />;
   if (error) return <p role="alert">{error}</p>;
   if (loading || !text) return <p>Loading preview...</p>;
   return <pre className="details-text">{text}</pre>;
@@ -143,7 +143,7 @@ function WorkBlock({ work, number }) {
   return (
     <section className="details-card details-work-block" aria-labelledby={`work-${work.id}-heading`}>
       <div className="details-work-heading">
-        <h2 id={`work-${work.id}-heading`}>Entry {number}</h2>
+        <h2 id={`work-${work.id}-heading`}>Submission {number}</h2>
       </div>
       <dl className="details-grid">
         <Detail label="Title" value={work.title} />
@@ -158,18 +158,18 @@ function WorkBlock({ work, number }) {
       <h3>Files ({files.length})</h3>
       {files.length === 0 ? <p>No files are attached.</p> : (
         <div className="details-files-layout">
-          <div className="details-file-list" aria-label={`Files for entry ${number}`}>
+          <div className="details-file-list" aria-label={`Files for submission ${number}`}>
             {files.map((file) => (
               <button key={file.id} type="button" className={`details-file-button${file.id === selectedFileId ? " is-selected" : ""}`} onClick={() => setSelectedFileId(file.id)} aria-pressed={file.id === selectedFileId}>
-                <strong>{file.original_filename || `File ${file.id}`}</strong>
+                <strong>{file.filename || `File ${file.id}`}</strong>
                 <span>{file.preview_kind === "video" ? "Video" : file.document_type === "visual" ? "Visual" : "Text"} · {formatFileSize(file.size)}</span>
               </button>
             ))}
           </div>
           <div className="details-preview-panel">
             <div className="details-preview-bar">
-              <strong>{selectedFile?.original_filename || "Preview"}</strong>
-              {selectedFile && <a href={selectedFile.download_url}>Download original ↓</a>}
+              <strong>{selectedFile?.filename || "Preview"}</strong>
+              {selectedFile && <a href={selectedFile.download_url}>Download file ↓</a>}
             </div>
             <div className="details-preview"><Preview key={selectedFile?.id} document={selectedFile} /></div>
           </div>
