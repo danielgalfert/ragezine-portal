@@ -27,8 +27,8 @@
 }
 
 .hero {
-  min-height: 100svh;
-  padding: 64px clamp(16px, 3vw, 32px);
+  min-height: clamp(0px, calc(100svh + 100vw - 1200px), 100svh);
+  padding: clamp(40px, 4vw, 64px) clamp(16px, 3vw, 32px) clamp(24px, 3vw, 64px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -47,18 +47,19 @@
 }
 
 .hero-copy {
-  --hero-wordmark-size: clamp(3rem, 8vw, 7.5rem);
+  --hero-wordmark-size: clamp(3.75rem, 8vw, 7.5rem);
   display: grid;
   justify-items: center;
   width: 100%;
   min-width: 0;
+  font-size: var(--hero-wordmark-size);
 }
 
 .hero-title {
   width: 100%;
   display: grid;
   justify-items: center;
-  font-size: var(--hero-wordmark-size);
+  font-size: 1em;
   line-height: 1;
   letter-spacing: -0.025em;
 }
@@ -86,7 +87,7 @@
 }
 
 .hero-letter-pair {
-  font-family: "NewEdge666SemiBoldSlanted", sans-serif;
+  font-family: "NewEdge666UltraBoldSlanted", sans-serif;
   letter-spacing: 0;
   margin-inline: 0.05em;
 }
@@ -106,7 +107,7 @@
 .hero-copy .hero-subtitle {
   margin-top: 8px;
   font-family: "NewEdge666SemiBoldSlanted", sans-serif;
-  font-size: calc(var(--hero-wordmark-size) * 0.52);
+  font-size: 0.52em;
   line-height: 1;
   letter-spacing: 0;
   white-space: nowrap;
@@ -114,14 +115,15 @@
 
 .hero-description {
   display: grid;
-  gap: 1rem;
+  gap: 0.75em;
   width: min(68ch, 100%);
-  margin-top: 30px;
+  margin-top: 1.4em;
+  font-size: 0.183em;
   text-align: left;
 }
 
 .hero-copy .hero-description p {
-  font-size: clamp(16px, 1.5vw, 20px);
+  font-size: inherit;
   line-height: 1.55;
   color: #000;
 }
@@ -146,7 +148,7 @@
 
 .submit {
   min-height: 100vh;
-  padding: 64px clamp(20px, 3vw, 50px) 60px;
+  padding: clamp(24px, 3vw, 64px) clamp(16px, 3vw, 50px) 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -188,6 +190,7 @@
 
 .submit-intro h2 {
   font-family: "NewEdge666UltraBoldSlanted", sans-serif;
+  font-size: clamp(38px, 8vw, 112px);
   color: #000;
   text-align: center;
   text-shadow: none;
@@ -251,40 +254,13 @@
     grid-column: auto;
   }
 
-  .hero,
-  .submit {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
   .submit-shell {
     gap: 24px;
   }
 }
 
 @media (max-width: 600px) {
-  .hero,
   .submit {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-
-  .hero {
-    min-height: clamp(360px, 58svh, 520px);
-    padding-top: 48px;
-    padding-bottom: 48px;
-  }
-
-  .hero-copy {
-    --hero-wordmark-size: clamp(2.25rem, 10vw, 3.75rem);
-  }
-
-  .hero-description {
-    margin-top: 18px;
-  }
-
-  .submit {
-    padding-top: 48px;
     padding-bottom: 40px;
   }
 
@@ -298,5 +274,20 @@
 
   .rolling-text span {
     animation-duration: 28s;
+  }
+}
+
+@media (max-width: 450px) {
+  .hero-wordmark {
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    white-space: normal;
+  }
+
+  .hero-copy .hero-subtitle {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
   }
 }
